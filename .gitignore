@@ -7,6 +7,7 @@ assets/references/*
 # ── Node ─────────────────────────────────────────────────────────────────────
 node_modules/
 coverage/
+dist/
 # package.json + package-lock.json ARE committed (Scorecard Pinned-Dependencies).
 
 # ── Gradle / JVM agent builds (each agents/<target>/ is its own Gradle build) ─

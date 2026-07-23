@@ -1,0 +1,31 @@
+<!--
+  chrome/subnav.html — the shared secondary nav (the section/context row).
+
+  The section row a project SHOULD carry. Place directly below the header. Same flat pill
+  style as the primary nav; it's the layer that CHANGES between pages while the primary nav
+  stays constant. Mark the current one class="active" aria-current="page".
+
+  CANONICAL PROJECT SUBNAV — a fixed three-zone shape (see 05-navigation-and-cross-linking.md):
+    [ <Project name> = overview/home ] · Notes · Tutorials · Changelog · API · Download · [ Repository ↗ ]
+    - LEFT  : the project name, doubling as the overview/home link (.subnav-home).
+    - CENTRE: the project's own doc pages — include the ones it has, in this order.
+              A project that offers downloads MUST include "Download".
+    - RIGHT : "Repository ↗", right-aligned (.subnav-repo).
+
+  The wrapper (nav.subnav > div.wrap) and the pill style are fixed — copy them. Only the
+  links inside {{FF_SUBNAV_ITEMS}} are yours to fill; keep the three-zone order.
+-->
+<nav class="subnav" aria-label="Section">
+  <div class="wrap">
+    {{FF_SUBNAV_ITEMS}}
+    <!-- Example — replace with this project's real pages (drop any it doesn't have):
+    <a href="./" class="subnav-home active" aria-current="page">{{FF_PROJECT_NAME}}</a>
+    <a href="./notes/">Notes</a>
+    <a href="./tutorials/">Tutorials</a>
+    <a href="./changelog/">Changelog</a>
+    <a href="./api/">API</a>
+    <a href="./download/">Download</a>
+    <a href="https://github.com/1fairyfox/{{FF_PROJECT_KEY}}" class="subnav-repo">Repository ↗</a>
+    -->
+  </div>
+</nav>

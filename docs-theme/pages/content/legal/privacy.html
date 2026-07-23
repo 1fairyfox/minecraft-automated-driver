@@ -1,0 +1,58 @@
+<h1>Privacy Policy</h1>
+<p><em>Last updated: 2026-07-22</em></p>
+
+<p>This policy describes how Minecraft Automated Driver — the MCP server, the in-game
+agents, and this documentation site — handles information. It is written to match what
+the software actually does.</p>
+
+<h2>This documentation site</h2>
+<p>This site requires no account and collects no personal information on a server.
+Two pieces of shared Fairy Fox state live in your browser's local storage only, and
+are never transmitted: your <strong>reader preferences</strong> (theme, accent, text
+size, spacing, width — the "Aa" menu) and the <strong>Fairy Fox coins</strong>
+counter (your coin balance and the record of which pages you've opened today). Both
+are device-only. You can clear them any time with the reader menu's
+<strong>Reset</strong> control, the coins panel's <strong>Clear my data</strong>
+link, or by clearing your browser's site data. Coins have no monetary value — see
+the shared <a href="https://fairyfox.io/legal/coins/">coins explainer</a>.</p>
+
+<h2>The driver, on your machine</h2>
+<p>Minecraft Automated Driver is a local development tool. It runs entirely on the
+machine you install it on: the MCP server communicates over stdio with the AI client
+that launched it, and its control channel to the in-game agents binds
+<code>127.0.0.1</code> only. It has <strong>no telemetry</strong>, makes no network
+calls of its own beyond the actions you explicitly ask for (such as downloading a Paper
+server jar from PaperMC's API, or installing dependencies from npm/Maven), and phones
+nowhere home. Anything it records — logs, screenshots, provisioned test servers — is
+written to your own disk under the project directories you point it at, and never
+leaves your machine.</p>
+
+<h2>The in-game agents</h2>
+<p>The optional agents (a Paper plugin and client mods) are inert until explicitly
+enabled by a launch flag, configuration, or the in-game opt-in button. When enabled,
+they expose game state only over the loopback, token-authenticated channel above — to
+software running on the same machine, under your account. They collect nothing and
+transmit nothing elsewhere.</p>
+
+<h2>Third-party services</h2>
+<p>This site is hosted on <strong>GitHub Pages</strong>, which may log standard
+request metadata (such as IP addresses) as a processor. The site's fonts are loaded
+from <strong>Google Fonts</strong> (part of the shared Fairy Fox site chrome), which
+exposes your IP address to Google when pages load — flagged here for transparency.</p>
+
+<h2>Analytics &amp; tracking</h2>
+<p>We use no analytics, tracking pixels, or advertising — on this site or in the
+software.</p>
+
+<h2>Cookies</h2>
+<p>This site sets no cookies. See the <a href="../cookies/index.html">Cookies
+Policy</a>.</p>
+
+<h2>Children</h2>
+<p>This software is not directed at children under 13.</p>
+
+<h2>Contact</h2>
+<p>Questions: <a href="mailto:legal@fairyfox.io">legal@fairyfox.io</a></p>
+
+<p><small>This document is provided for transparency and is not legal advice. For a
+high-stakes deployment, have it reviewed by a qualified professional.</small></p>

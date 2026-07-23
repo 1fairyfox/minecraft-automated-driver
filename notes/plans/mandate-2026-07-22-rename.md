@@ -34,5 +34,16 @@ escalate to do-now:
 | 11 | Branch protection ("when CI exists" — CI now exists) | Protect `main`: required status checks from the release PR's observed check names; release 0.1.2 lands via PR with all checks green. | done |
 | 12 | Hub registration / group rename / sibling rename | Explicitly owner-claimed ("ill do the paperwork", "gives me some thing to do on the hub", "ill name the other project later") — NOT escalated; overriding an explicit owner reservation isn't latitude. | awaiting-owner |
 
+## Escalation 2 — "you need to finish onboarding" (docs site)
+
+Owner: "i registered you on the hub but we still need a docs site before i can do that
+forgot about that you need to finish onboarding, proceed normally with everything that
+is required and mandated by me …"
+
+| # | Clause | Interpretation | Status |
+|---|--------|----------------|--------|
+| 13 | "we still need a docs site … finish onboarding" | Build + deploy the themed docs site (the last project-side onboarding row). Compliance, item-by-item: shared theme tokens/chrome ✓ (vendored, `docs-theme/chrome/`, version-marked) · header/footer shell ✓ · canonical three-zone subnav ✓ · two-way links to fairyfox.io ✓ (test-asserted on every page) · published at `fairyfox.io/minecraft-automated-driver/` ✓ (Pages project site, no CNAME) · legal pages matching real data practices ✓ · boundaried generated-API zone **N-A-with-reason** (no doc generator exists for the JS server yet; added when one does) · live page visually verified ✓ (fetched and inspected, not just resolved). | done |
+| 14 | (carried) hub-side docs-library entry + registry flag flip | Owner-side once the site is live. | awaiting-owner |
+
 Completion check: diff final state against the owner's words clause-by-clause before
 claiming done (CLAUDE.md → Owner Mandates Become Ledgers).
