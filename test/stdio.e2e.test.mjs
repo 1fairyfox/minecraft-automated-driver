@@ -8,6 +8,7 @@ import { dirname, join } from 'node:path';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { readVersion } from '../src/index.mjs';
+import { EXPECTED_TOOLS } from './index.test.mjs';
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 
@@ -25,12 +26,12 @@ test('full stdio session: spawn → initialize → list → call → clean shutd
   assert.equal(info.version, await readVersion());
 
   const { tools } = await client.listTools();
-  assert.deepEqual(tools.map((t) => t.name), ['driver_status']);
+  assert.deepEqual(tools.map((t) => t.name).sort(), EXPECTED_TOOLS);
 
   const result = await client.callTool({ name: 'driver_status', arguments: {} });
   const status = JSON.parse(result.content[0].text);
   assert.equal(status.transport, 'stdio-only');
-  assert.equal(status.phase, 0);
+  assert.equal(status.phase, 1);
 
   await client.close();
 });

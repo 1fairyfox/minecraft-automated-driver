@@ -67,9 +67,11 @@ this roadmap, minimal-but-real MCP server that answers `driver_status`. Exit: `n
 serves MCP over stdio; `node scripts/check-links.mjs` green; committed on `dev`.
 
 ### Phase 1 — MCP core + OS/host layer (L0)
-- Tool registry, config (`driver.config.json`), structured errors, **job model** for long
-  operations (start → job id → poll/log/kill), instance registry (everything the driver
-  knows it spawned or attached to).
+- Tool registry, config (`driver.config.json`), structured errors, instance registry
+  (everything the driver knows it spawned or attached to).
+  *(Amended 2026-07-23: the **job model** moved to Phase 2 — its first real consumers
+  are the long build/server operations there, and the no-dead-code principle outranks
+  the original sketch; see `decisions/architecture.md`.)*
 - Windows host helpers (PowerShell/Win32 via child process): enumerate Minecraft windows
   (any client, modded or vanilla), per-window screenshots (`PrintWindow`, works on
   background windows), process open/close, crash detection.
@@ -77,6 +79,8 @@ serves MCP over stdio; `node scripts/check-links.mjs` green; committed on `dev`.
 - Exit: with a vanilla client running, Claude can list it, screenshot it, and close it.
 
 ### Phase 2 — Build/test orchestration (L1)
+- **Job model** for long operations (start → job id → poll/log/kill) — lands here with
+  its first consumers (moved from Phase 1, amendment 2026-07-23).
 - Gradle driver: clean/build/test against any configured project checkout (starting with
   the sibling plugin), parsed results, logs as MCP resources.
 - Paper provisioning: download by version (fill.papermc.io), create isolated run dirs
