@@ -34,11 +34,13 @@ export async function provisionServer({
 }) {
   const { url, build, channel } = await resolvePaperDownload(version, { fetchImpl });
   log(`paper ${version}: build ${build} (${channel}) → downloading`);
-  await mkdir(join(dir, 'plugins'), { recursive: true });
+  // Restrictive modes: server dirs default under the shared OS tmpdir, so keep them
+  // owner-only on POSIX (CodeQL js/insecure-temporary-file; no-op perms on Windows).
+  await mkdir(join(dir, 'plugins'), { recursive: true, mode: 0o700 });
   const jarPath = join(dir, 'paper.jar');
   const response = await fetchImpl(url, { headers: { 'User-Agent': UA }, redirect: 'follow' });
   if (!response.ok) throw new Error(`paper download failed: HTTP ${response.status}`);
-  await pipeline(Readable.fromWeb(response.body), createWriteStream(jarPath));
+  await pipeline(Readable.fromWeb(response.body), createWriteStream(jarPath, { mode: 0o600 }));
   await writeFile(join(dir, 'eula.txt'), 'eula=true\n');
   await writeFile(join(dir, 'server.properties'), [
     'level-type=minecraft\\:flat',

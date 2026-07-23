@@ -2,7 +2,6 @@
 // real boot is scripts/server-smoke.mjs locally and in CI).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { EventEmitter } from 'node:events';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -23,7 +22,7 @@ const bytesResponse = (text) => ({
 
 test('resolvePaperDownload returns the server:default url/build/channel', async () => {
   const fetchImpl = async (url) => {
-    assert.match(String(url), /fill\.papermc\.io\/v3\/projects\/paper\/versions\/1\.21\.11\/builds\/latest/);
+    assert.equal(String(url), 'https://fill.papermc.io/v3/projects/paper/versions/1.21.11/builds/latest');
     return jsonResponse({ id: 118, channel: 'STABLE', downloads: { 'server:default': { url: 'https://dl/paper.jar' } } });
   };
   assert.deepEqual(await resolvePaperDownload('1.21.11', { fetchImpl }),

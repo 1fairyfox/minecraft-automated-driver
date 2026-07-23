@@ -53,7 +53,7 @@ test('ensureJava skips too-old candidates and falls through to provisioning', as
     const probed = [];
     const ran = [];
     const fetchImpl = async (url) => {
-      assert.match(String(url), /api\.adoptium\.net\/v3\/binary\/latest\/21\/ga\/linux\/x64\/jre/);
+      assert.equal(String(url), 'https://api.adoptium.net/v3/binary/latest/21/ga/linux/x64/jre/hotspot/normal/eclipse');
       return { ok: true, status: 200, body: new Blob(['ARCHIVE']).stream() };
     };
     const run = async ({ command, args, onLine }) => {
@@ -73,7 +73,7 @@ test('ensureJava skips too-old candidates and falls through to provisioning', as
     const logs = [];
     const result = await ensureJava({
       feature: 21, runtimesDir: dir, platform: 'linux', arch: 'x64',
-      envJavaHome: undefined, fetchImpl, run, log: (l) => logs.push(l),
+      envJavaHome: null, fetchImpl, run, log: (l) => logs.push(l),
     });
     assert.equal(result.provisioned, true);
     assert.match(result.javaPath, /temurin-21-jre/);
@@ -113,7 +113,7 @@ test('ensureJava reuses an already-provisioned managed runtime', async () => {
     await mkdir(managedBin, { recursive: true });
     await writeFile(join(managedBin, 'java'), '');
     const result = await ensureJava({
-      feature: 21, runtimesDir: dir, platform: 'linux', envJavaHome: undefined,
+      feature: 21, runtimesDir: dir, platform: 'linux', envJavaHome: null,
       fetchImpl: async () => { throw new Error('must not download'); },
       run: async ({ command, onLine }) => {
         onLine(command === 'java' ? 'nope' : 'openjdk version "21.0.1"');
@@ -130,19 +130,19 @@ test('ensureJava fails loudly on unmappable platforms, HTTP errors, and bad extr
   try {
     const never = async ({ command, onLine }) => { onLine('nope'); return { code: 1 }; };
     await assert.rejects(
-      () => ensureJava({ feature: 21, runtimesDir: dir, platform: 'sunos', arch: 'x64', envJavaHome: undefined, run: never }),
+      () => ensureJava({ feature: 21, runtimesDir: dir, platform: 'sunos', arch: 'x64', envJavaHome: null, run: never }),
       /no Temurin JRE mapping/,
     );
     await assert.rejects(
       () => ensureJava({
-        feature: 21, runtimesDir: dir, platform: 'linux', arch: 'x64', envJavaHome: undefined,
+        feature: 21, runtimesDir: dir, platform: 'linux', arch: 'x64', envJavaHome: null,
         run: never, fetchImpl: async () => ({ ok: false, status: 500 }),
       }),
       /HTTP 500/,
     );
     await assert.rejects(
       () => ensureJava({
-        feature: 21, runtimesDir: dir, platform: 'linux', arch: 'x64', envJavaHome: undefined,
+        feature: 21, runtimesDir: dir, platform: 'linux', arch: 'x64', envJavaHome: null,
         fetchImpl: async () => ({ ok: true, status: 200, body: new Blob(['x']).stream() }),
         run: async ({ command, onLine }) => {
           if (command === 'tar') return { code: 2 };

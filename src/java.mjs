@@ -101,9 +101,11 @@ export async function ensureJava({
   log(`java: no suitable host Java — downloading Temurin ${feature} JRE from Adoptium…`);
   const response = await fetchImpl(url, { redirect: 'follow' });
   if (!response.ok) throw new Error(`Adoptium download failed: HTTP ${response.status}`);
-  await mkdir(managedDir, { recursive: true });
+  // Owner-only modes: the runtimes dir defaults under the shared OS tmpdir
+  // (CodeQL js/insecure-temporary-file; no-op perms on Windows).
+  await mkdir(managedDir, { recursive: true, mode: 0o700 });
   const archivePath = join(managedDir, platform === 'win32' ? 'jre.zip' : 'jre.tar.gz');
-  await pipeline(Readable.fromWeb(response.body), createWriteStream(archivePath));
+  await pipeline(Readable.fromWeb(response.body), createWriteStream(archivePath, { mode: 0o600 }));
   log('java: extracting…');
   const { code } = await run({
     command: 'tar',
