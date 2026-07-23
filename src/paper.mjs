@@ -41,16 +41,16 @@ export async function provisionServer({
   const response = await fetchImpl(url, { headers: { 'User-Agent': UA }, redirect: 'follow' });
   if (!response.ok) throw new Error(`paper download failed: HTTP ${response.status}`);
   await pipeline(Readable.fromWeb(response.body), createWriteStream(jarPath, { mode: 0o600 }));
-  await writeFile(join(dir, 'eula.txt'), 'eula=true\n');
+  await writeFile(join(dir, 'eula.txt'), 'eula=true\n', { mode: 0o600 });
   await writeFile(join(dir, 'server.properties'), [
-    'level-type=minecraft\\:flat',
+    String.raw`level-type=minecraft\:flat`,
     'online-mode=false', // LOCAL loopback test server only — see SECURITY.md
     'spawn-protection=0',
     'view-distance=4',
     `server-port=${port}`,
     'server-ip=127.0.0.1',
     '',
-  ].join('\n'));
+  ].join('\n'), { mode: 0o600 });
   log(`paper ${version}: provisioned at ${dir}`);
   return { dir, jarPath, build, channel };
 }
