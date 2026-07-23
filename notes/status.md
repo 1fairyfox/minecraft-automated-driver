@@ -1,6 +1,6 @@
 # Status — Minecraft Automated Driver
 
-**Updated:** 2026-07-23 · **Version:** 0.1.4 · **Phase:** 0 (scaffold + gates + docs site + icon/integrations) — complete, released (v0.1.4 on `main`)
+**Updated:** 2026-07-23 · **Version:** 0.2.0 · **Phase:** 1 (L0 OS layer) — complete, released (v0.2.0 on `main`)
 
 ## What this is
 
@@ -13,11 +13,14 @@ behind one tool surface. **Founding plan: `plans/roadmap-2026-07.md` — read it
 - Repo scaffolded on the mesh standards, seeded from the sibling **despawned-items**
   node (whose local standard modifications are ahead of the hub — see the provenance
   note in `CLAUDE.md` and `fairyfox-reports/2026-07-22-onboarding-scaffold.md`).
-- Working MCP skeleton: `npm start` serves stdio, one tool (`driver_status`).
-  **Quality gates live:** 7 tests across three layers (unit / in-memory protocol /
-  spawned-stdio e2e), c8 gate ≥90% on all four metrics wired into `npm test`
-  (currently 100%), CI + CodeQL + Scorecard workflows (SHA-pinned, least-privilege),
-  `main` branch-protected, private vulnerability reporting on.
+- **Phase 1 / L0 is live**: `os_windows_list`, `os_screenshot` (PrintWindow +
+  screen fallback, real image content), `instance_open`/`instance_close`/
+  `instances_list` over an injectable PowerShell/Win32 backend. Exit criteria proven
+  with a no-mocks smoke (spawn → enumerate → screenshot → close) locally and in a
+  `windows-latest` CI job.
+- **Quality gates:** 54 tests across all layers, c8 gate ≥90% on all four metrics
+  (at ~100%), CI + CodeQL + Scorecard + Codecov + Sonar (SHA-pinned,
+  least-privilege), `main` branch-protected, private vulnerability reporting on.
 - Key decisions recorded in `decisions/architecture.md` (JS-not-TS host, MC 1.21.11
   target, instance+attach dual mode, loopback+token security, GitHub-only distribution).
 
@@ -36,7 +39,9 @@ behind one tool surface. **Founding plan: `plans/roadmap-2026-07.md` — read it
 
 ## Next
 
-1. Owner: hub registration (repo now exists) + the "Minecraft Plugins" group rename.
-2. Phase 1 (MCP core + OS layer) per the roadmap — job model, instance registry,
-   window discovery + OS screenshots.
-3. Docs site + CI ride Phase 7 unless the owner wants them earlier.
+1. **Phase 2** per the roadmap — job model (first consumers), Gradle build/test
+   driver, Paper server provisioning/boot/console/logs.
+2. Owner: finish hub registration flags (docs site is live) + the "Minecraft
+   Plugins" group rename + sibling rename.
+3. Watch: `os_screenshot` "printwindow" vs GL surfaces — the "screen" fallback
+   exists; verify against a real Minecraft window in Phase 5 and default per-target.

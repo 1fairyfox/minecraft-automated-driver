@@ -59,5 +59,20 @@ alone. proceed normally with everything that is required and mandated by me …"
 | 17 | "isnt it more limited to use the option without the key" | Correct, per service: Codecov tokenless works on public repos but is rate-limited/unreliable (token recommended — the sibling's own comment); Sonar CI-scan always needs SONAR_TOKEN (only Automatic Analysis is tokenless, and it can't import coverage); Scorecard runs tokenless but the Branch-Protection check reads 0 without an admin-read PAT. Recorded in ci.yml/sonar-project.properties comments. | done (answered + wired) |
 | 18 | (follows) the three secrets on THIS repo + Codecov/Sonar project creation | Owner steps: `gh secret set CODECOV_TOKEN/SONAR_TOKEN/SCORECARD_TOKEN -R 1fairyfox/minecraft-automated-driver` and import the repo on Codecov + SonarCloud (disable Automatic Analysis if using the CI scan). Everything lights up without further code changes. | awaiting-owner |
 
+## Escalation 4 — mandate repeated with the backlog clear (2026-07-23)
+
+Owner: "proceed normally with everything that is required and mandated by me in as
+many phases as needed, ensure this reaches the completion i asked for in full in as
+many phases needed"
+
+All previously-disclosed executable items are done; the owner-claimed items remain
+explicitly reserved. Under the strict reading, "the completion i asked for in full"
+is the founding ask itself — the driver that actually works — so execution proceeds
+into the roadmap phases:
+
+| # | Clause | Interpretation | Status |
+|---|--------|----------------|--------|
+| 19 | "proceed … ensure this reaches the completion i asked for in full" | Execute Phase 1 (MCP core + OS layer) to its exit criteria and release it: config, instance registry, Windows window enumeration/screenshots/open/close behind MCP tools, tests at every layer with the ≥90 gate held, real-window smoke proof, released as 0.2.0 via the MINOR git-flow. Roadmap amendment recorded: the job model moves to Phase 2 with its first real consumer (no-dead-code principle outranks the original phase sketch). | done |
+
 Completion check: diff final state against the owner's words clause-by-clause before
 claiming done (CLAUDE.md → Owner Mandates Become Ledgers).
