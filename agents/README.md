@@ -9,6 +9,6 @@ Each target gets its own self-contained Gradle build here, created **in its phas
 | `fabric/` | Fabric client agent mod — semantic UI driving, input/movement, direct-connect, in-process screenshots, title-screen opt-in for attach mode | 4 |
 | `neoforge/` | NeoForge counterparts | 8 |
 
-All agents: package `io.fairyfox.papermc.automateddriver.<target>`, disabled-by-default
+All agents: package `io.fairyfox.minecraft.automateddriver.<target>`, disabled-by-default
 gating, one shared control-protocol spec (`docs/control-protocol.md`, written in
 Phase 3). Design: `notes/plans/roadmap-2026-07.md`.

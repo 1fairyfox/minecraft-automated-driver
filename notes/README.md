@@ -1,4 +1,4 @@
-# Project Notes — PaperMC Automated Driver
+# Project Notes — Minecraft Automated Driver
 
 Living documentation for this repo. Written during work so anyone — you later, or
 an AI opening the repo cold — can orient fast. The goal: **no knowledge trapped in
