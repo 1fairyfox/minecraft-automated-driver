@@ -1,0 +1,46 @@
+name: Docs
+
+# Builds the themed docs site (docs-site standard, Case A) and publishes it to GitHub
+# Pages on every release to main. Serves at fairyfox.io/minecraft-automated-driver/.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Least privilege at the top level (Scorecard Token-Permissions); the deploy job below
+# elevates only the pages/id-token scopes it needs.
+permissions:
+  contents: read
+
+# Allow one concurrent deployment; don't cancel an in-progress publish.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Build the docs site (chrome shell + content + live changelog)
+        run: node scripts/build-docs.mjs
+      - uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5
+      - uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3
+        with:
+          path: dist/docs-site
+      - id: deployment
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4

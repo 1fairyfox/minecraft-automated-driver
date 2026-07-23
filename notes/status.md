@@ -1,6 +1,6 @@
 # Status — Minecraft Automated Driver
 
-**Updated:** 2026-07-22 · **Version:** 0.1.2 · **Phase:** 0 (scaffold + gates) — complete, released (v0.1.2 on `main`)
+**Updated:** 2026-07-22 · **Version:** 0.1.3 · **Phase:** 0 (scaffold + gates + docs site) — complete, released (v0.1.3 on `main`)
 
 ## What this is
 
@@ -27,8 +27,8 @@ behind one tool surface. **Founding plan: `plans/roadmap-2026-07.md` — read it
 |-----------|-------|
 | Working tree / versioning / branch model / notes system / CLAUDE.md mesh block | done |
 | GitHub repo | done — `1fairyfox/minecraft-automated-driver`, `dev`/`main` + tags pushed |
-| **Hub registration** (registry.yml, projects.yml — hub-side commits) | **missing** — owner doing the hub paperwork (incl. renaming the group to "Minecraft Plugins") |
-| **Themed docs site** at fairyfox.io/minecraft-automated-driver/ | **missing** — planned Phase 7 |
+| **Hub registration** (registry.yml, projects.yml — hub-side commits) | **partial** — owner registered it 2026-07-22; docs-library entry/flags await the live site (owner) |
+| Themed docs site at fairyfox.io/minecraft-automated-driver/ | done — live since 0.1.3, visually verified; no /api/ zone yet (no generator exists — added when one does) |
 | CI / CodeQL / Scorecard workflows | done — live since 0.1.2 (owner mandate pulled them forward from Phase 7) |
 | Scorecard **score** | awaiting first scheduled/main-push scan; all solo levers pulled. Owner step for full marks: `gh secret set SCORECARD_TOKEN` (fine-grained PAT, Administration:read) so Branch-Protection can score |
 | Adoption manifest verify passes | see `reference/adoption-manifest.md` — supply-chain + testing rows upgraded 0.1.2 |

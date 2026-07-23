@@ -2,6 +2,14 @@
 
 Newest on top. Each: decision → why → revisit-when.
 
+## 2026-07-22 — Docs site assembled by a Node script, not Gradle
+The sibling renders its site from Gradle because its build is Gradle; here the repo
+root is Node, so `scripts/build-docs.mjs` (+ `marked`, pinned) fills the same
+`_shell.html` placeholder contract and renders the changelog live from
+`notes/version/`. No `/api/` boundaried zone until a real doc generator exists for
+the JS server (JSDoc/TypeDoc later; Dokka per-agent when agents land). Revisit: when
+the first generator produces reference worth wrapping.
+
 ## 2026-07-22 — Rename: Minecraft Automated Driver (drops the papermc- prefix)
 Owner call the same day as founding: the tool drives clients, servers, and mods across
 platforms — it was never Paper-specific. Slug/npm `minecraft-automated-driver`, JVM

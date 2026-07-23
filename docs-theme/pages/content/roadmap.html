@@ -1,0 +1,42 @@
+<h1>Roadmap</h1>
+<p class="pg-meta">Condensed from the founding plan
+(<a href="https://github.com/1fairyfox/minecraft-automated-driver/blob/main/notes/plans/roadmap-2026-07.md">notes/plans/roadmap-2026-07.md</a>
+— the repository copy is canonical and more detailed).</p>
+
+<h2>Why this exists</h2>
+<p>Minecraft plugin/mod development accumulates automation piecemeal — a bot script here,
+a screenshot harness there, a playtest bootstrapper, CI jobs that boot real servers.
+This project unifies those layers, generalizes them beyond any one plugin, and puts them
+behind a single MCP tool surface an AI assistant can drive end to end.</p>
+
+<h2>Three lanes for driving a client</h2>
+<table>
+  <tr><th>Lane</th><th>What it is</th><th>When</th></tr>
+  <tr><td><strong>Agent mod</strong></td><td>Kotlin Fabric mod inside a real rendering client: widgets by name, keybinding invocation, movement, in-process screenshots, reflection state</td><td>The main lane — live interactive testing</td></tr>
+  <tr><td><strong>Protocol bot</strong></td><td>Mineflayer — a headless protocol-level player</td><td>Cheap smoke and load work</td></tr>
+  <tr><td><strong>OS level</strong></td><td>Window discovery, <code>PrintWindow</code> screenshots, open/close</td><td>Any client, vanilla included, nothing installed</td></tr>
+</table>
+
+<h2>Phases</h2>
+<table>
+  <tr><th>Phase</th><th>Delivers</th><th>Status</th></tr>
+  <tr><td>0 — Scaffold &amp; gates</td><td>Mesh standards, working MCP skeleton, 3-layer test suite, coverage gate ≥90%, CI/CodeQL/Scorecard, this docs site</td><td><strong>done</strong></td></tr>
+  <tr><td>1 — MCP core + OS layer</td><td>Job model, instance registry, window discovery + OS screenshots, open/close</td><td>next</td></tr>
+  <tr><td>2 — Build/test orchestration</td><td>Gradle driver, Paper provisioning/boot/console/logs</td><td>planned</td></tr>
+  <tr><td>3 — Control protocol + Paper agent</td><td>One loopback protocol spec; server-side state, commands, world ops, events</td><td>planned</td></tr>
+  <tr><td>4 — Fabric client agent</td><td>Semantic UI driving by name, player control, in-process screenshots, opt-in gating</td><td>planned</td></tr>
+  <tr><td>5 — Client lifecycle</td><td>Dev-client spawns (no launcher), attach handshake, Mineflayer lane</td><td>planned</td></tr>
+  <tr><td>6 — Deep state access</td><td>Reflection gateway — reads session-gated, writes per-session grant</td><td>planned</td></tr>
+  <tr><td>7 — Release engineering</td><td>Full CI matrix incl. client gametests, GitHub-only releases with provenance</td><td>partially pulled forward (CI, Scorecard, this site)</td></tr>
+  <tr><td>8 — Extended targets</td><td>NeoForge agents, Folia-ready Paper agent, 26.x line when tooling catches up</td><td>planned</td></tr>
+</table>
+
+<h2>Deliberate constraints</h2>
+<ul>
+  <li><strong>Semantic, never pixels</strong> — driving is by widget/keybinding/screen
+      name; pixel input is only the floor for unmodded clients.</li>
+  <li><strong>MC 1.21.11 / Java 21</strong> — the ceiling shared by Mineflayer and
+      MockBukkit; Paper forward-compat covers 26.x servers meanwhile.</li>
+  <li><strong>No launcher automation</strong> — dev clients cover instancing; your real
+      client is attach-only, by explicit in-game consent.</li>
+</ul>

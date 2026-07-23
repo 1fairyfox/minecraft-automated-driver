@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<!-- _shell.html — the one chrome shell for every hand-authored page of the docs site
+     (docs-site standard: Case A — hand-authored site; no generated-API zone yet, the
+     /api/ boundaried zone gets added when a generator produces docs worth wrapping).
+     Assembled at build time by scripts/build-docs.mjs, which fills these tokens
+     (written here with spaced braces so this comment never matches substitution):
+       {{ FF_ROOT }}        — relative prefix to the site root ("", "../", "../../", …)
+       {{ FF_HTML_ATTRS }}  — ` data-read` on readable pages, empty on navigation pages
+       {{ FF_TITLE }} / {{ FF_DESC }}
+       {{ ACTIVE_* }}       — ` class="active" aria-current="page"` on the current item
+       {{ FF_CONTENT }}     — the page body
+     Subnav is the CANONICAL three-zone shape (05): [name=overview] · centre links ·
+     [Repository ↗ / Notes ↗]. Primary nav marks Projects active — always, only
+     Projects (05). Brand icon is VENDORED (chrome/fox.png), not hot-linked
+     (self-hosted-assets). Vendored theme chrome version: docs-theme/chrome/VERSION. -->
+<html lang="en"{{FF_HTML_ATTRS}}>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{FF_TITLE}}</title>
+  <meta name="description" content="{{FF_DESC}}">
+  <link href="{{FF_ROOT}}icon.png" rel="icon" type="image/png">
+
+  <!-- 1 · Browser-chrome colour, per scheme (identical everywhere) -->
+  <meta name="theme-color" content="#ef6149" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#191116" media="(prefers-color-scheme: dark)">
+
+  <!-- 2 · Reader pre-paint (verbatim from chrome/head.html) -->
+  <script>
+  (function(){try{var p=JSON.parse(localStorage.getItem("fairyfox:reader:b")||"{}"),r=document.documentElement,
+  S=[15,16.5,18,20,22],L={tight:1.5,normal:1.65,relaxed:1.9},W={narrow:"38rem",normal:"46rem",wide:"58rem"};
+  if(p.theme&&p.theme!=="system")r.setAttribute("data-theme",p.theme);
+  if(p.size!=null)r.style.fontSize=S[Math.max(0,Math.min(S.length-1,p.size|0))]+"px";
+  var story=r.hasAttribute("data-read")||r.hasAttribute("data-story");
+  if(story&&p.lh)r.style.setProperty("--reading-lh",String(L[p.lh]||L.normal));
+  if(story&&p.width)r.style.setProperty("--reading-width",W[p.width]||W.normal);
+  if(p.accent){var h=p.accent,ink="color-mix(in srgb, "+h+", var(--text) 42%)";
+  r.style.setProperty("--accent",h);r.style.setProperty("--violet",h);
+  r.style.setProperty("--violet-deep","color-mix(in srgb, "+h+", #000 12%)");
+  r.style.setProperty("--accent-ink",ink);r.style.setProperty("--link",ink);
+  r.style.setProperty("--link-hover","color-mix(in srgb, "+h+", var(--text) 26%)");
+  r.style.setProperty("--glow","color-mix(in srgb, "+h+" 40%, transparent)");}}catch(e){}})();
+  </script>
+
+  <!-- 3 · Fonts (verbatim) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <!-- 4 · The vendored master stylesheet -->
+  <link rel="stylesheet" href="{{FF_ROOT}}main.css">
+
+  <!-- Page-local layout for content cards/tables; palette/type come from main.css vars -->
+  <style>
+    .pg-main{max-width:var(--reading-width,46rem);margin:0 auto;padding:2.5rem var(--gutter,1.25rem) 4rem;flex:1 0 auto}
+    .pg-card{border:1px solid var(--border,rgba(128,128,128,.25));border-radius:12px;padding:1.5rem;margin:1.25rem 0}
+    .pg-card h2,.pg-card h3{margin-top:0}
+    .pg-btn{display:inline-block;padding:.6rem 1.1rem;border-radius:999px;border:1px solid var(--accent,#ef6149);font-weight:600;text-decoration:none}
+    .pg-meta{font-size:.9em;opacity:.8}
+    .pg-main table{border-collapse:collapse;width:100%;margin:1rem 0}
+    .pg-main th,.pg-main td{border:1px solid var(--border,rgba(128,128,128,.25));padding:.5rem .7rem;text-align:left;vertical-align:top}
+    .pg-main code{font-family:"JetBrains Mono",monospace;font-size:.92em}
+    .pg-main pre{border:1px solid var(--border,rgba(128,128,128,.25));border-radius:8px;padding:1rem;overflow-x:auto}
+    .pg-cardgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(14rem,1fr));gap:1rem}
+    .pg-cardgrid .pg-card{margin:0}
+  </style>
+</head>
+<body>
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="https://fairyfox.io/">
+        <img class="brand-logo" src="{{FF_ROOT}}fox.png" alt="" aria-hidden="true">
+        <span class="brand-name">Fairy&nbsp;Fox</span>
+      </a>
+      <button class="nav-toggle" aria-label="Toggle navigation" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
+      <nav class="nav" aria-label="Primary">
+        <a href="https://fairyfox.io/">Home</a>
+        <a href="https://fairyfox.io/projects/" class="active" aria-current="page">Projects</a>
+        <details class="dd">
+          <summary>Farms</summary>
+          <div class="dd-panel">
+            <div class="dd-group">
+              <div class="dd-links">
+                <a href="https://fairyfox.io/stories/">Stories</a>
+                <a href="https://fairyfox.io/games/">Games</a>
+              </div>
+            </div>
+          </div>
+        </details>
+        <a href="https://fairyfox.io/docs/">Docs</a>
+        <a href="https://fairyfox.io/blog/">Updates</a>
+        <a href="https://fairyfox.io/about/">About</a>
+      </nav>
+    </div>
+  </header>
+
+  <nav class="subnav" aria-label="Section">
+    <div class="wrap">
+      <a href="{{FF_ROOT}}index.html" class="subnav-home{{ACTIVE_HOME}}"{{ARIA_HOME}}>Minecraft Automated Driver</a>
+      <a href="{{FF_ROOT}}index.html"{{ACTIVE_OVERVIEW}}>Overview</a>
+      <a href="{{FF_ROOT}}roadmap.html"{{ACTIVE_ROADMAP}}>Roadmap</a>
+      <a href="{{FF_ROOT}}security.html"{{ACTIVE_SECURITY}}>Security</a>
+      <a href="{{FF_ROOT}}changelog.html"{{ACTIVE_CHANGELOG}}>Changelog</a>
+      <a href="{{FF_ROOT}}downloads.html"{{ACTIVE_DOWNLOAD}}>Download</a>
+      <a href="{{FF_ROOT}}legal/index.html"{{ACTIVE_LEGAL}}>Legal</a>
+      <a href="https://github.com/1fairyfox/minecraft-automated-driver" class="subnav-repo">Repository ↗</a>
+      <a href="https://github.com/1fairyfox/minecraft-automated-driver/tree/main/notes" class="subnav-repo">Notes ↗</a>
+    </div>
+  </nav>
+
+  <main class="pg-main" id="main">
+{{FF_CONTENT}}
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="footer-brand">
+        <a class="brand" href="https://fairyfox.io/">
+          <img class="brand-logo" src="{{FF_ROOT}}fox.png" alt="" aria-hidden="true">
+          <span class="brand-name">Fairy Fox</span>
+        </a>
+        <p>The project hub and documentation library for Fairy Fox's software work.</p>
+      </div>
+      <div class="footer-col">
+        <h4>Explore</h4>
+        <a href="https://fairyfox.io/projects/">Projects</a>
+        <a href="https://fairyfox.io/docs/">Documentation</a>
+        <a href="https://fairyfox.io/blog/">Updates</a>
+        <a href="https://fairyfox.io/about/">About</a>
+      </div>
+      <div class="footer-col">
+        <h4>This project</h4>
+        <a href="https://fairyfox.io/minecraft-automated-driver/">Minecraft Automated Driver</a>
+        <a href="https://github.com/1fairyfox/minecraft-automated-driver">Repository ↗</a>
+        <a href="https://fairyfox.io/minecraft-automated-driver/legal/privacy/">Privacy</a>
+        <a href="https://fairyfox.io/minecraft-automated-driver/legal/terms/">Terms</a>
+        <a href="https://fairyfox.io/minecraft-automated-driver/legal/cookies/">Cookies</a>
+      </div>
+      <div class="footer-col">
+        <h4>Elsewhere</h4>
+        <a href="https://github.com/1fairyfox">GitHub ↗</a>
+        <a href="https://fairyfox.io/feed.xml">Atom feed</a>
+      </div>
+    </div>
+    <div class="footer-bar">
+      <div class="wrap">
+        <span>© Fairy Fox</span>
+        <span>Built with the fairyfox docs-site standard</span>
+        <span class="spacer"></span>
+        <a href="https://github.com/1fairyfox">@1fairyfox</a>
+      </div>
+    </div>
+  </footer>
+
+  <script src="{{FF_ROOT}}nav.js" defer></script>
+  <script src="{{FF_ROOT}}reader.js" defer></script>
+  <script src="{{FF_ROOT}}coins.js" defer></script>
+</body>
+</html>

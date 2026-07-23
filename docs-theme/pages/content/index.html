@@ -1,0 +1,46 @@
+<h1>Minecraft Automated Driver</h1>
+<p>An <strong>MCP server</strong> that puts the whole Minecraft development loop behind
+one tool surface an AI assistant can drive: clean/build/test of plugins and mods,
+launching and killing Paper servers and Minecraft clients, attaching to already-running
+clients, OS-level and in-process screenshots, protocol bots — and, through in-game
+agents, <strong>semantic control of a live client or server</strong>: menus and widgets
+by <em>name</em> (never pixel coordinates), movement, teleports, state queries, and a
+gated reflection gateway into live game internals.</p>
+
+<p class="pg-meta">Targets <strong>Minecraft 1.21.x</strong> (built against 1.21.11) on
+<strong>Java 21</strong>, MCP server on <strong>Node ≥ 20</strong> (plain JavaScript).
+Pre-alpha: Phase 0 (scaffold + quality gates) is complete; the layers land phase by
+phase — see the <a href="roadmap.html">Roadmap</a>.</p>
+
+<h2>The shape of it</h2>
+<table>
+  <tr><th>Layer</th><th>What it does</th></tr>
+  <tr><td><strong>MCP server</strong> (Node)</td><td>The single tool surface — stdio only, never a network listener</td></tr>
+  <tr><td><strong>L0 · OS/host</strong></td><td>Find any Minecraft window, screenshot it, open/close instances — works on bare vanilla clients</td></tr>
+  <tr><td><strong>L1 · Build/test</strong></td><td>Gradle clean/build/test, Paper server download/boot/console, log streaming</td></tr>
+  <tr><td><strong>L2 · Protocol bots</strong></td><td>Mineflayer players for headless smoke and load work</td></tr>
+  <tr><td><strong>L3 · In-game agents</strong> (Kotlin)</td><td>A Paper plugin and a Fabric client mod exposing semantic control over a loopback-only, token-gated channel</td></tr>
+</table>
+
+<h2>Two ways a client comes under control</h2>
+<ul>
+  <li><strong>Instance</strong> — the driver spawns a Gradle/Loom dev client (no launcher,
+      no account needed) with the agent enabled by launch flag, and direct-connects it to
+      a local <code>online-mode=false</code> test server.</li>
+  <li><strong>Attach</strong> — your own launcher-installed client carries the agent mod
+      <em>dormant</em>; a title-screen button ("Automated Testing…") with a confirmation
+      dialog enables the control channel until the game closes. Nothing is automated
+      without that gesture.</li>
+</ul>
+
+<h2>Explore</h2>
+<div class="pg-cardgrid">
+  <div class="pg-card"><h3><a href="roadmap.html">Roadmap</a></h3>
+    <p>The layer model, the instance/attach design, and Phases 0–8.</p></div>
+  <div class="pg-card"><h3><a href="security.html">Security</a></h3>
+    <p>Stdio-only MCP, loopback-only control plane, agents disabled by default.</p></div>
+  <div class="pg-card"><h3><a href="changelog.html">Changelog</a></h3>
+    <p>Every release, in plain English, newest first.</p></div>
+  <div class="pg-card"><h3><a href="downloads.html">Download</a></h3>
+    <p>GitHub Releases — the only distribution channel, deliberately.</p></div>
+</div>

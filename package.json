@@ -1,6 +1,6 @@
 {
   "name": "minecraft-automated-driver",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "private": true,
   "description": "MCP server that puts the Minecraft dev loop — build, test, launch, attach, screenshot, and semantic live control of clients and servers — behind one tool surface. Stdio only; loopback-only control plane; in-game agents disabled by default.",
   "license": "Apache-2.0",
@@ -13,13 +13,15 @@
   "scripts": {
     "start": "node src/index.mjs",
     "test": "c8 --include src --check-coverage --lines 90 --statements 90 --functions 90 --branches 90 node --test",
-    "check-links": "node scripts/check-links.mjs"
+    "check-links": "node scripts/check-links.mjs",
+    "build-docs": "node scripts/build-docs.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.29.0"
   },
   "devDependencies": {
-    "c8": "10.1.3"
+    "c8": "10.1.3",
+    "marked": "18.0.7"
   },
   "comment_coverage": "Owner mandate 2026-07-22: coverage >= 90% is a GATE, not a goal — the test script fails below it, across lines/statements/functions/branches, scoped to src/ (scripts/ are repo tooling, test/ is the suite itself). c8 propagates NODE_V8_COVERAGE to child processes, so the spawned-stdio e2e test counts toward coverage of the entry-point guard.",
   "comment_sdk": "Pinned to the v1 line deliberately. SDK v2 (split @modelcontextprotocol/server / client packages) goes stable alongside the 2026-07-28 MCP spec; migrating is a planned, bounded refactor — see notes/plans/future.md. Do not mix v1 and v2.",

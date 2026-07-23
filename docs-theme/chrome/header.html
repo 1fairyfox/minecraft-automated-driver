@@ -1,0 +1,52 @@
+<!--
+  chrome/header.html — the shared fairyfox masthead (brand + primary nav).
+
+  Copy verbatim as the FIRST element inside <body> on every page. The primary nav is
+  the FIXED mesh-wide set, identical on every page of every project — do not reorder,
+  drop, add, or rename items. Stories + Games live under the "Farms" dropdown (nav.js
+  drives it). Mark the current top-level section with class="active" — on a Stories or
+  Games page, mark BOTH the Farms <summary> and the matching link inside it.
+
+  URLs: shown as absolute https://fairyfox.io/... so the chrome works whether the
+  project is same-origin on Pages or on its own host. On a same-origin Pages project
+  you MAY use root-relative /… instead; the absolute form always works.
+
+  The reader ("Aa") button is NOT hard-coded here: reader.js injects it at the far
+  right of .wrap (just after .nav) on load, and coins.js injects the coin button just
+  to its left. Load nav.js, reader.js, then coins.js before </body> — see README.md.
+  Do not also paste a static button, or you'll get duplicates.
+-->
+<header class="site-header">
+  <div class="wrap">
+    <a class="brand" href="https://fairyfox.io/">
+      <img class="brand-logo" src="https://fairyfox.io/assets/icons/fox.png" alt="" aria-hidden="true">
+      <span class="brand-name">Fairy&nbsp;Fox</span>
+    </a>
+
+    <button class="nav-toggle" aria-label="Toggle navigation" aria-expanded="false">
+      <span></span><span></span><span></span>
+    </button>
+
+    <nav class="nav" aria-label="Primary">
+      <a href="https://fairyfox.io/">Home</a>
+      <a href="https://fairyfox.io/projects/">Projects</a>
+      <!-- Farms groups the two "grown daily" collections — Stories + Games. On a Stories
+           or Games page add class="active" to the <summary> and to the matching link. -->
+      <details class="dd">
+        <summary>Farms</summary>
+        <div class="dd-panel">
+          <div class="dd-group">
+            <div class="dd-links">
+              <a href="https://fairyfox.io/stories/">Stories</a>
+              <a href="https://fairyfox.io/games/">Games</a>
+            </div>
+          </div>
+        </div>
+      </details>
+      <a href="https://fairyfox.io/docs/">Docs</a>
+      <a href="https://fairyfox.io/blog/">Updates</a>
+      <a href="https://fairyfox.io/about/">About</a>
+    </nav>
+    <!-- reader.js injects the "Aa" button here (a direct child of .wrap, after .nav). -->
+  </div>
+</header>

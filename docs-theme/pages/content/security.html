@@ -1,0 +1,37 @@
+<h1>Security model</h1>
+<p>This is a <strong>local development tool</strong>, and its founding requirement is
+that it adds <strong>no remotely reachable surface and no silently enabled
+surface</strong> to your machine. The canonical policy lives in
+<a href="https://github.com/1fairyfox/minecraft-automated-driver/blob/main/SECURITY.md">SECURITY.md</a>;
+this page is the plain-English tour.</p>
+
+<h2>The invariants</h2>
+<ul>
+  <li><strong>No network listener for MCP.</strong> The MCP server speaks stdio to its
+      client and never binds a socket for that purpose.</li>
+  <li><strong>Loopback-only control plane.</strong> The driver⇄agent channel binds
+      <code>127.0.0.1</code> exclusively, on an ephemeral port, authenticated with a
+      per-session 256-bit random token. Agents reject non-loopback binds and
+      unauthenticated peers.</li>
+  <li><strong>Agents are disabled by default.</strong> With no launch flag, no config
+      opt-in, and no in-game opt-in gesture, an installed agent registers no listener
+      and exposes nothing. The in-game opt-in (title-screen button + confirmation) lasts
+      at most until the game process exits.</li>
+  <li><strong>Reflection writes are gated.</strong> Reading live game state requires an
+      authenticated session; <em>writing</em> additionally requires an explicit
+      per-session capability grant.</li>
+  <li><strong>No telemetry.</strong> Nothing phones home. Outbound network use is limited
+      to explicitly requested provisioning (e.g. downloading a Paper server jar) and
+      dependency installation.</li>
+  <li><strong>GitHub releases only.</strong> The agents are deliberately never published
+      to mod/plugin marketplaces — they are development tooling, not player-facing
+      products.</li>
+</ul>
+
+<h2>The build is held to the same bar</h2>
+<p>Coverage-gated tests (≥90% enforced — the build fails below it), CodeQL static
+analysis, an OpenSSF Scorecard workflow, SHA-pinned CI actions with least-privilege
+tokens, a protected release branch, and private vulnerability reporting. Found
+something? Please report privately — see
+<a href="https://github.com/1fairyfox/minecraft-automated-driver/security">Security on
+GitHub</a>.</p>

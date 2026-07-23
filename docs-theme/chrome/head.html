@@ -1,0 +1,55 @@
+<!--
+  chrome/head.html — the <head> half of the shared fairyfox chrome.
+
+  Paste these lines into the <head> of every page a project's docs generator emits,
+  in this order. They are what make the theme not flash and the fonts not reflow when
+  a visitor crosses between fairyfox.io and a project. Everything here is STATIC —
+  copy it verbatim; only the two {{FF_*}} hrefs are yours to point at your pulled copy
+  of the master assets.
+
+  What must stay identical across the mesh (do NOT edit): the theme-color metas, the
+  pre-paint theme script, the font links. Only the asset hrefs change per project.
+-->
+
+<!-- 1 · Browser-chrome colour, per scheme (identical everywhere) -->
+<meta name="theme-color" content="#ef6149" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#191116" media="(prefers-color-scheme: dark)">
+
+<!-- 2 · Reader pre-paint: apply the saved theme / accent / text vars BEFORE first
+     paint, from the origin-wide fairyfox:reader:b key, so there is no flash and the
+     choice carries across every fairyfox.io site. Kept in sync with reader.js — copy
+     verbatim; the constants (SIZES/LH/WIDTH, the accent recipe) are normative.
+     Line spacing + width are READING-PAGE ONLY: they apply (and their controls un-lock)
+     only when the page opts in with `data-read` (a note, a legal page, a guide) or
+     `data-story` (a book/chapter) on its <html> element. Index/list/API/category/sidebar
+     pages keep the designed measure; text size/theme/accent apply everywhere. Set the
+     attribute on <html> so this pre-paint script can read it. -->
+<script>
+(function(){try{var p=JSON.parse(localStorage.getItem("fairyfox:reader:b")||"{}"),r=document.documentElement,
+S=[15,16.5,18,20,22],L={tight:1.5,normal:1.65,relaxed:1.9},W={narrow:"38rem",normal:"46rem",wide:"58rem"};
+if(p.theme&&p.theme!=="system")r.setAttribute("data-theme",p.theme);
+if(p.size!=null)r.style.fontSize=S[Math.max(0,Math.min(S.length-1,p.size|0))]+"px";
+var story=r.hasAttribute("data-read")||r.hasAttribute("data-story");
+if(story&&p.lh)r.style.setProperty("--reading-lh",String(L[p.lh]||L.normal));
+if(story&&p.width)r.style.setProperty("--reading-width",W[p.width]||W.normal);
+if(p.accent){var h=p.accent,ink="color-mix(in srgb, "+h+", var(--text) 42%)";
+r.style.setProperty("--accent",h);r.style.setProperty("--violet",h);
+r.style.setProperty("--violet-deep","color-mix(in srgb, "+h+", #000 12%)");
+r.style.setProperty("--accent-ink",ink);r.style.setProperty("--link",ink);
+r.style.setProperty("--link-hover","color-mix(in srgb, "+h+", var(--text) 26%)");
+r.style.setProperty("--glow","color-mix(in srgb, "+h+" 40%, transparent)");}}catch(e){}})();
+</script>
+
+<!-- 3 · Fonts — same families/weights + preconnect/display=swap so type doesn't reflow -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<!-- 4 · The master stylesheet — your pulled copy of fairyfox.io's assets/css/main.css.
+     Point this at wherever your build vendors it. This is the palette, the type scale,
+     and every chrome component (header/nav/subnav/reader/footer). -->
+<link rel="stylesheet" href="{{FF_CSS_HREF}}">
+
+<!-- Favicon / web-manifest: reuse the same family as fairyfox.io for a continuous tab
+     identity (see 05-navigation-and-cross-linking.md). Not reproduced here — copy your
+     project's own set, or the main site's, at the same sizes. -->

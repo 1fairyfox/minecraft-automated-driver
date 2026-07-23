@@ -1,0 +1,52 @@
+<!--
+  chrome/footer.html — the shared fairyfox footer.
+
+  Copy as the last element before the scripts. Structure is fixed (brand column +
+  three link columns + a footer bar); the {{FF_*}} slots are yours:
+    {{FF_PROJECT_KEY}}   the repo slug (e.g. random-ai-prompt)
+    {{FF_PROJECT_NAME}}  the display name (e.g. Random AI Prompt)
+  The "Explore" column always points BACK to the main site — that, plus the brand/Home
+  link in the header, is the required way home (see 05-navigation-and-cross-linking.md).
+  The "This project" column lists THIS project's own page, its repo, and its legal pages.
+  The legal links assume the standard /legal/{privacy,terms,cookies}/ location on the
+  project's served site; repoint them if yours live elsewhere (e.g. an app's public/legal).
+-->
+<footer class="site-footer">
+  <div class="wrap">
+    <div class="footer-brand">
+      <a class="brand" href="https://fairyfox.io/">
+        <img class="brand-logo" src="https://fairyfox.io/assets/icons/fox.png" alt="" aria-hidden="true">
+        <span class="brand-name">Fairy Fox</span>
+      </a>
+      <p>The project hub and documentation library for Fairy Fox's software work.</p>
+    </div>
+    <div class="footer-col">
+      <h4>Explore</h4>
+      <a href="https://fairyfox.io/projects/">Projects</a>
+      <a href="https://fairyfox.io/docs/">Documentation</a>
+      <a href="https://fairyfox.io/blog/">Updates</a>
+      <a href="https://fairyfox.io/about/">About</a>
+    </div>
+    <div class="footer-col">
+      <h4>This project</h4>
+      <a href="https://fairyfox.io/{{FF_PROJECT_KEY}}/">{{FF_PROJECT_NAME}}</a>
+      <a href="https://github.com/1fairyfox/{{FF_PROJECT_KEY}}">Repository ↗</a>
+      <a href="https://fairyfox.io/{{FF_PROJECT_KEY}}/legal/privacy/">Privacy</a>
+      <a href="https://fairyfox.io/{{FF_PROJECT_KEY}}/legal/terms/">Terms</a>
+      <a href="https://fairyfox.io/{{FF_PROJECT_KEY}}/legal/cookies/">Cookies</a>
+    </div>
+    <div class="footer-col">
+      <h4>Elsewhere</h4>
+      <a href="https://github.com/1fairyfox">GitHub ↗</a>
+      <a href="https://fairyfox.io/feed.xml">Atom feed</a>
+    </div>
+  </div>
+  <div class="footer-bar">
+    <div class="wrap">
+      <span>© Fairy Fox</span>
+      <span>Built with the fairyfox docs-site standard</span>
+      <span class="spacer"></span>
+      <a href="https://github.com/1fairyfox">@1fairyfox</a>
+    </div>
+  </div>
+</footer>

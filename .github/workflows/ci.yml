@@ -41,3 +41,6 @@ jobs:
 
       - name: Link check
         run: node scripts/check-links.mjs
+
+      - name: Docs site builds (self-verifying — fails on any unresolved placeholder)
+        run: node scripts/build-docs.mjs
