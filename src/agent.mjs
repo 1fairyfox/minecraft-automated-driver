@@ -34,6 +34,7 @@ export function connectAgent({ port, token, host = '127.0.0.1', connectImpl = ne
     const fail = (err) => {
       for (const { reject: rej } of pending.values()) rej(err);
       pending.clear();
+      socket.destroy(); // release the handle on any failure — no half-open lingering
       if (!welcome) reject(err);
     };
 
@@ -82,7 +83,7 @@ export function connectAgent({ port, token, host = '127.0.0.1', connectImpl = ne
         });
       },
       events() { return [...eventBuffer]; },
-      close() { socket.end(); },
+      close() { socket.destroy(); },
     };
 
     // Hello must be the first line we send, once the socket is up.
