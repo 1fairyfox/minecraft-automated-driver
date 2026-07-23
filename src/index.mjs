@@ -19,6 +19,10 @@ import { z } from 'zod';
 import { loadConfig } from './config.mjs';
 import { createInstanceRegistry } from './instances.mjs';
 import { createWindowsBackend } from './os/windows.mjs';
+import { createJobRegistry } from './jobs.mjs';
+import { startGradleJob } from './build.mjs';
+import { deployPlugin, provisionServer, createServerManager } from './paper.mjs';
+import { ensureJava } from './java.mjs';
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 
@@ -39,10 +43,19 @@ const failure = (err) => ({
   content: [{ type: 'text', text: `Error: ${err.message}` }],
 });
 
-export async function createServer({ root = ROOT, backend, registry, config } = {}) {
+export async function createServer({
+  root = ROOT, backend, registry, config, jobs: jobsIn, servers: serversIn, l1 = {},
+} = {}) {
   const cfg = config ?? (await loadConfig(root));
   const os = backend ?? createWindowsBackend();
   const instances = registry ?? createInstanceRegistry();
+  const jobs = jobsIn ?? createJobRegistry();
+  const servers = serversIn ?? createServerManager({ jobs });
+  // L1 seams, injectable for the protocol tests.
+  const gradle = l1.gradle ?? startGradleJob;
+  const provision = l1.provision ?? provisionServer;
+  const deploy = l1.deploy ?? deployPlugin;
+  const java = l1.java ?? ensureJava;
   const version = await readVersion(root);
 
   const server = new McpServer({ name: 'minecraft-automated-driver', version });
@@ -59,15 +72,204 @@ export async function createServer({ root = ROOT, backend, registry, config } = 
     async () => text({
       name: 'minecraft-automated-driver',
       version,
-      phase: 1,
+      phase: 2,
       layers: {
         l0_os: 'available — windows list/screenshot, instance open/close (Windows host)',
-        l1_build_test: 'planned (Phase 2)',
+        l1_build_test: 'available — gradle jobs, paper provision/boot/console, auto-provisioned java',
         l2_protocol_bots: 'planned (Phase 5)',
         l3_agents: 'planned (Phases 3-4)',
       },
       transport: 'stdio-only',
     }),
+  );
+
+  // ── L1: jobs ───────────────────────────────────────────────────────────────
+
+  server.registerTool(
+    'jobs_list',
+    {
+      title: 'List jobs',
+      description: 'All long-running operations the driver has started, with statuses.',
+      inputSchema: {},
+    },
+    async () => text(jobs.list()),
+  );
+
+  server.registerTool(
+    'job_status',
+    {
+      title: 'Job status',
+      description: 'Status snapshot of one job (running / succeeded / failed / killed).',
+      inputSchema: { id: z.string().describe('Job id, e.g. j1') },
+    },
+    async ({ id }) => {
+      const snap = jobs.status(id);
+      return snap ? text(snap) : failure(new Error(`no job ${id}`));
+    },
+  );
+
+  server.registerTool(
+    'job_log',
+    {
+      title: 'Job log',
+      description: 'Tail a job\'s captured output (ring-buffered).',
+      inputSchema: {
+        id: z.string(),
+        tail: z.number().int().positive().optional().describe('Last N lines (default: all buffered)'),
+      },
+    },
+    async ({ id, tail }) => {
+      const log = jobs.log(id, { tail });
+      return log ? text(log) : failure(new Error(`no job ${id}`));
+    },
+  );
+
+  server.registerTool(
+    'job_kill',
+    {
+      title: 'Kill a job',
+      description: 'Abort a running job; its underlying process (if any) is killed.',
+      inputSchema: { id: z.string() },
+    },
+    async ({ id }) => {
+      const snap = jobs.kill(id);
+      return snap ? text(snap) : failure(new Error(`no job ${id}`));
+    },
+  );
+
+  // ── L1: build ──────────────────────────────────────────────────────────────
+
+  server.registerTool(
+    'build_gradle',
+    {
+      title: 'Run gradle tasks',
+      description:
+        'Run gradle wrapper tasks (clean/build/test/…) in a project checkout as a ' +
+        'job. Returns the job id immediately — poll job_status, tail job_log. The ' +
+        'job result lists any jars under build/libs.',
+      inputSchema: {
+        projectDir: z.string().min(1).describe('Absolute path of the gradle project'),
+        tasks: z.array(z.string().min(1)).optional().describe('Default: ["build"]'),
+      },
+    },
+    async ({ projectDir, tasks = ['build'] }) => {
+      try {
+        return text(gradle({ jobs, projectDir, tasks }));
+      } catch (err) {
+        return failure(err);
+      }
+    },
+  );
+
+  // ── L1: paper servers ──────────────────────────────────────────────────────
+
+  server.registerTool(
+    'server_provision',
+    {
+      title: 'Provision a Paper test server',
+      description:
+        'Auto-download Paper by Minecraft version (fill.papermc.io, latest build) ' +
+        'into a directory and configure it as a LOCAL loopback test server ' +
+        '(eula accepted, flat world, online-mode=false — local testing only, see ' +
+        'SECURITY.md). Runs as a job. Optionally deploys plugin jars.',
+      inputSchema: {
+        version: z.string().min(1).describe('Minecraft version, e.g. 1.21.11'),
+        dir: z.string().optional().describe('Target dir (default: managed run dir)'),
+        port: z.number().int().positive().optional(),
+        plugins: z.array(z.string()).optional().describe('Plugin jar paths to deploy'),
+      },
+    },
+    async ({ version: mcVersion, dir, port = 25565, plugins = [] }) => {
+      const target = dir ?? join(cfg.runDir, `paper-${mcVersion}-${Date.now()}`);
+      const snap = jobs.start(`provision paper ${mcVersion} @ ${target}`, async ({ log }) => {
+        const result = await provision({ version: mcVersion, dir: target, port, log });
+        for (const pluginJar of plugins) {
+          log(`deploying ${pluginJar}`);
+          await deploy({ dir: target, pluginJar });
+        }
+        return { ...result, pluginsDeployed: plugins.length };
+      });
+      return text(snap);
+    },
+  );
+
+  server.registerTool(
+    'server_start',
+    {
+      title: 'Start a provisioned server',
+      description:
+        'Boot a provisioned Paper dir as a job. Java is auto-resolved — a suitable ' +
+        'host JDK/JRE if present, otherwise a Temurin JRE is downloaded into the ' +
+        'managed runtimes dir (auto-provision by default). Poll server_status via ' +
+        'servers_list; readiness is the console "Done" line.',
+      inputSchema: {
+        dir: z.string().min(1).describe('The provisioned server directory'),
+        javaArgs: z.array(z.string()).optional().describe('Default: ["-Xmx2G"]'),
+        waitReadyMs: z.number().int().positive().optional()
+          .describe('Block up to this long for readiness before returning (default: return immediately)'),
+      },
+    },
+    async ({ dir, javaArgs = ['-Xmx2G'], waitReadyMs }) => {
+      try {
+        const { javaPath } = await java({ feature: 21, runtimesDir: cfg.runtimesDir });
+        const started = servers.start({ dir, javaPath, javaArgs });
+        if (waitReadyMs) {
+          const state = await servers.waitReady(started.serverId, { timeoutMs: waitReadyMs });
+          return text({ ...started, state });
+        }
+        return text({ ...started, state: 'starting' });
+      } catch (err) {
+        return failure(err);
+      }
+    },
+  );
+
+  server.registerTool(
+    'server_exec',
+    {
+      title: 'Run a console command',
+      description: 'Send a command to a running server\'s console (stdin).',
+      inputSchema: {
+        serverId: z.string().describe('From server_start / servers_list'),
+        command: z.string().min(1),
+      },
+    },
+    async ({ serverId, command }) => {
+      try {
+        return text(servers.exec(serverId, command));
+      } catch (err) {
+        return failure(err);
+      }
+    },
+  );
+
+  server.registerTool(
+    'server_stop',
+    {
+      title: 'Stop a server',
+      description: 'Graceful console `stop`, then a forced kill after the timeout.',
+      inputSchema: {
+        serverId: z.string(),
+        timeoutMs: z.number().int().positive().optional(),
+      },
+    },
+    async ({ serverId, timeoutMs = 30_000 }) => {
+      try {
+        return text(await servers.stop(serverId, { timeoutMs }));
+      } catch (err) {
+        return failure(err);
+      }
+    },
+  );
+
+  server.registerTool(
+    'servers_list',
+    {
+      title: 'List servers',
+      description: 'Every Paper server the driver manages, with state and job id.',
+      inputSchema: {},
+    },
+    async () => text(servers.list()),
   );
 
   server.registerTool(

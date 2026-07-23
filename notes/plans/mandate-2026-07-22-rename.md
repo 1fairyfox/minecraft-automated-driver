@@ -59,6 +59,17 @@ alone. proceed normally with everything that is required and mandated by me …"
 | 17 | "isnt it more limited to use the option without the key" | Correct, per service: Codecov tokenless works on public repos but is rate-limited/unreliable (token recommended — the sibling's own comment); Sonar CI-scan always needs SONAR_TOKEN (only Automatic Analysis is tokenless, and it can't import coverage); Scorecard runs tokenless but the Branch-Protection check reads 0 without an admin-read PAT. Recorded in ci.yml/sonar-project.properties comments. | done (answered + wired) |
 | 18 | (follows) the three secrets on THIS repo + Codecov/Sonar project creation | Owner steps: `gh secret set CODECOV_TOKEN/SONAR_TOKEN/SCORECARD_TOKEN -R 1fairyfox/minecraft-automated-driver` and import the repo on Codecov + SonarCloud (disable Automatic Analysis if using the CI scan). Everything lights up without further code changes. | awaiting-owner |
 
+## Escalation 5 — mandate repeated again + auto-setup directive (2026-07-23)
+
+Owner: "proceed normally with everything that is required and mandated…" and,
+mid-execution: "can it offer ways to automatically download and setup things where
+possible"
+
+| # | Clause | Interpretation | Status |
+|---|--------|----------------|--------|
+| 20 | (repetition) | Execute Phase 2 (L1 build/test) to exit criteria and release 0.3.0: job model, gradle driver, Paper provision/boot/console/stop tools, tests at every layer, real local + CI smokes. | done |
+| 21 | "automatically download and setup things where possible" | Elevated to a design principle (**auto-provision by default**, `context/principles.md` #8): Paper jars auto-download by version; Java auto-provisions (Temurin/Adoptium) when the host lacks 21+, proven in CI with `--force-java-download`; future phases apply the same rule (Loom caches, client assets). | done |
+
 ## Escalation 4 — mandate repeated with the backlog clear (2026-07-23)
 
 Owner: "proceed normally with everything that is required and mandated by me in as

@@ -9,10 +9,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { createServer, readVersion } from '../src/index.mjs';
 
-export const EXPECTED_TOOLS = [
-  'driver_status', 'instance_close', 'instance_open', 'instances_list',
-  'os_screenshot', 'os_windows_list',
-];
+import { EXPECTED_TOOLS } from './helpers/expected-tools.mjs';
 
 const WINDOWS = [
   { pid: 7, process: 'javaw', title: 'Minecraft 1.21.11 - Multiplayer', hwnd: 111 },
@@ -33,11 +30,14 @@ function fakeBackend(overrides = {}) {
   };
 }
 
-async function connected({ backend = fakeBackend(), config } = {}) {
+async function connected({ backend = fakeBackend(), config, jobs, servers, l1 } = {}) {
   const dir = await mkdtemp(join(tmpdir(), 'driver-shots-'));
   const server = await createServer({
     backend,
-    config: config ?? { screenshotDir: dir },
+    jobs,
+    servers,
+    l1,
+    config: config ?? { screenshotDir: dir, runDir: dir, runtimesDir: dir },
   });
   const [ct, st] = InMemoryTransport.createLinkedPair();
   const client = new Client({ name: 'test-client', version: '0.0.0' });
@@ -73,12 +73,13 @@ test('tools/list exposes exactly the Phase-1 surface', async () => {
   await close();
 });
 
-test('driver_status reports phase 1 with the L0 layer available', async () => {
+test('driver_status reports phase 2 with L0 and L1 available', async () => {
   const { client, close } = await connected();
   const result = await client.callTool({ name: 'driver_status', arguments: {} });
   const status = JSON.parse(result.content[0].text);
-  assert.equal(status.phase, 1);
+  assert.equal(status.phase, 2);
   assert.match(status.layers.l0_os, /^available/);
+  assert.match(status.layers.l1_build_test, /^available/);
   assert.equal(status.transport, 'stdio-only');
   await close();
 });
@@ -212,5 +213,141 @@ test('instances_list reports windows as unavailable rather than failing wholesal
   const listed = JSON.parse((await client.callTool({ name: 'instances_list', arguments: {} })).content[0].text);
   assert.deepEqual(listed.spawned, []);
   assert.match(listed.windows.unavailable, /no windows here/);
+  await close();
+});
+
+// ── protocol: L1 jobs + build + servers (module logic unit-tested elsewhere;
+//    these prove the tool wiring, arg plumbing, and error surfacing) ──────────
+
+import { createJobRegistry } from '../src/jobs.mjs';
+
+function fakeServers() {
+  const calls = [];
+  return {
+    calls,
+    start(opts) { calls.push(['start', opts]); return { serverId: 's1', jobId: 'j1' }; },
+    get() { return null; },
+    list() { return [{ id: 's1', state: 'ready' }]; },
+    async waitReady() { return 'ready'; },
+    exec(id, command) { calls.push(['exec', id, command]); if (id === 's9') throw new Error(`no server ${id}`); return { sent: command }; },
+    async stop(id) { calls.push(['stop', id]); if (id === 's9') throw new Error(`no server ${id}`); return { stopped: true, forced: false }; },
+  };
+}
+
+test('build_gradle starts a job and the jobs_* tools drive its lifecycle', async () => {
+  const jobs = createJobRegistry();
+  const { client, close } = await connected({
+    jobs,
+    l1: {
+      gradle: ({ jobs: j, projectDir, tasks }) => j.start(`gradle ${tasks.join(' ')} @ ${projectDir}`, async ({ log }) => {
+        log('BUILD SUCCESSFUL');
+        return { code: 0, outcome: 'SUCCESS', jars: ['a.jar'] };
+      }),
+    },
+  });
+  const snap = JSON.parse(
+    (await client.callTool({ name: 'build_gradle', arguments: { projectDir: 'C:/proj', tasks: ['clean', 'build'] } })).content[0].text,
+  );
+  assert.equal(snap.status, 'running');
+  await jobs.wait(snap.id);
+
+  const status = JSON.parse((await client.callTool({ name: 'job_status', arguments: { id: snap.id } })).content[0].text);
+  assert.equal(status.status, 'succeeded');
+  assert.deepEqual(status.result.jars, ['a.jar']);
+
+  const log = JSON.parse((await client.callTool({ name: 'job_log', arguments: { id: snap.id, tail: 1 } })).content[0].text);
+  assert.deepEqual(log.lines, ['BUILD SUCCESSFUL']);
+
+  const list = JSON.parse((await client.callTool({ name: 'jobs_list', arguments: {} })).content[0].text);
+  assert.equal(list.length, 1);
+
+  const killed = JSON.parse((await client.callTool({ name: 'job_kill', arguments: { id: snap.id } })).content[0].text);
+  assert.equal(killed.status, 'succeeded'); // settled jobs stay settled
+
+  for (const name of ['job_status', 'job_log', 'job_kill']) {
+    const missing = await client.callTool({ name, arguments: { id: 'j404' } });
+    assert.equal(missing.isError, true, `${name} should error on unknown id`);
+  }
+  await close();
+});
+
+test('server_provision runs provision+deploy inside a job', async () => {
+  const jobs = createJobRegistry();
+  const deployed = [];
+  const { client, close } = await connected({
+    jobs,
+    l1: {
+      provision: async ({ version, dir, port }) => ({ dir, jarPath: `${dir}/paper.jar`, build: 9, channel: 'STABLE', version, port }),
+      deploy: async ({ pluginJar }) => { deployed.push(pluginJar); return { deployed: pluginJar }; },
+    },
+  });
+  const snap = JSON.parse(
+    (await client.callTool({
+      name: 'server_provision',
+      arguments: { version: '1.21.11', dir: 'C:/srv', port: 25599, plugins: ['x.jar', 'y.jar'] },
+    })).content[0].text,
+  );
+  const done = await jobs.wait(snap.id);
+  assert.equal(done.status, 'succeeded');
+  assert.equal(done.result.build, 9);
+  assert.equal(done.result.pluginsDeployed, 2);
+  assert.deepEqual(deployed, ['x.jar', 'y.jar']);
+  await close();
+});
+
+test('server_start resolves java, starts, and can block for readiness', async () => {
+  const servers = fakeServers();
+  const javaCalls = [];
+  const { client, close } = await connected({
+    servers,
+    l1: { java: async (opts) => { javaCalls.push(opts); return { javaPath: '/managed/java', major: 21, provisioned: true }; } },
+  });
+  const started = JSON.parse(
+    (await client.callTool({ name: 'server_start', arguments: { dir: 'C:/srv', waitReadyMs: 500 } })).content[0].text,
+  );
+  assert.deepEqual(started, { serverId: 's1', jobId: 'j1', state: 'ready' });
+  assert.equal(javaCalls[0].feature, 21);
+  assert.equal(servers.calls[0][1].javaPath, '/managed/java');
+
+  const immediate = JSON.parse(
+    (await client.callTool({ name: 'server_start', arguments: { dir: 'C:/srv' } })).content[0].text,
+  );
+  assert.equal(immediate.state, 'starting');
+  await close();
+});
+
+test('server_start surfaces java-resolution failures', async () => {
+  const { client, close } = await connected({
+    servers: fakeServers(),
+    l1: { java: async () => { throw new Error('no Temurin JRE mapping for sunos/x64'); } },
+  });
+  const result = await client.callTool({ name: 'server_start', arguments: { dir: 'C:/srv' } });
+  assert.equal(result.isError, true);
+  assert.match(result.content[0].text, /Temurin/);
+  await close();
+});
+
+test('server_exec / server_stop / servers_list plumb through and surface errors', async () => {
+  const servers = fakeServers();
+  const { client, close } = await connected({ servers });
+  assert.deepEqual(
+    JSON.parse((await client.callTool({ name: 'server_exec', arguments: { serverId: 's1', command: 'list' } })).content[0].text),
+    { sent: 'list' },
+  );
+  assert.deepEqual(
+    JSON.parse((await client.callTool({ name: 'server_stop', arguments: { serverId: 's1' } })).content[0].text),
+    { stopped: true, forced: false },
+  );
+  assert.equal(
+    JSON.parse((await client.callTool({ name: 'servers_list', arguments: {} })).content[0].text)[0].id,
+    's1',
+  );
+  for (const [name, args] of [
+    ['server_exec', { serverId: 's9', command: 'x' }],
+    ['server_stop', { serverId: 's9' }],
+  ]) {
+    const missing = await client.callTool({ name, arguments: args });
+    assert.equal(missing.isError, true, `${name} should error on unknown server`);
+  }
   await close();
 });

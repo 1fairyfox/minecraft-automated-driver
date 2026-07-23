@@ -8,7 +8,7 @@ import { dirname, join } from 'node:path';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { readVersion } from '../src/index.mjs';
-import { EXPECTED_TOOLS } from './index.test.mjs';
+import { EXPECTED_TOOLS } from './helpers/expected-tools.mjs';
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 
@@ -31,7 +31,7 @@ test('full stdio session: spawn → initialize → list → call → clean shutd
   const result = await client.callTool({ name: 'driver_status', arguments: {} });
   const status = JSON.parse(result.content[0].text);
   assert.equal(status.transport, 'stdio-only');
-  assert.equal(status.phase, 1);
+  assert.equal(status.phase, 2);
 
   await client.close();
 });

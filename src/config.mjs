@@ -8,6 +8,10 @@ import { tmpdir } from 'node:os';
 export const DEFAULTS = Object.freeze({
   // Where os_screenshot writes PNGs. Kept out of the repo tree by default.
   screenshotDir: join(tmpdir(), 'minecraft-automated-driver', 'screenshots'),
+  // Where server_provision creates managed test-server dirs.
+  runDir: join(tmpdir(), 'minecraft-automated-driver', 'run'),
+  // Where ensureJava installs managed Temurin runtimes (auto-provision by default).
+  runtimesDir: join(tmpdir(), 'minecraft-automated-driver', 'runtimes'),
 });
 
 export async function loadConfig(root) {
