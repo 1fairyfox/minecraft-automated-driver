@@ -1,6 +1,6 @@
-# Status — PaperMC Automated Driver
+# Status — Minecraft Automated Driver
 
-**Updated:** 2026-07-22 · **Version:** 0.1.0 · **Phase:** 0 (scaffold) — complete, uncommitted → first commit in flight
+**Updated:** 2026-07-22 · **Version:** 0.1.1 · **Phase:** 0 (scaffold) — complete, released (v0.1.1 on `main`)
 
 ## What this is
 
@@ -23,14 +23,15 @@ behind one tool surface. **Founding plan: `plans/roadmap-2026-07.md` — read it
 | Dimension | State |
 |-----------|-------|
 | Working tree / versioning / branch model / notes system / CLAUDE.md mesh block | done |
-| **GitHub repo + hub registration** (registry.yml, projects.yml) | **missing** — repo not created/pushed yet; hub-side commit not made |
-| **Themed docs site** at fairyfox.io/papermc-automated-driver/ | **missing** — planned Phase 7 |
+| GitHub repo | done — `1fairyfox/minecraft-automated-driver`, `dev`/`main` + tags pushed |
+| **Hub registration** (registry.yml, projects.yml — hub-side commits) | **missing** — owner doing the hub paperwork (incl. renaming the group to "Minecraft Plugins") |
+| **Themed docs site** at fairyfox.io/minecraft-automated-driver/ | **missing** — planned Phase 7 |
 | CI workflows | **missing** — planned Phase 7 (skeleton deliberately not committed; no dead config) |
 | Adoption manifest verify passes | `copied-only` for most standards — see `reference/adoption-manifest.md` |
 
 ## Next
 
-1. Owner: create the GitHub repo (`1fairyfox/papermc-automated-driver`), push `dev`/`main`.
+1. Owner: hub registration (repo now exists) + the "Minecraft Plugins" group rename.
 2. Phase 1 (MCP core + OS layer) per the roadmap — job model, instance registry,
    window discovery + OS screenshots.
-3. Hub registration + docs site ride Phase 7 unless the owner wants them earlier.
+3. Docs site + CI ride Phase 7 unless the owner wants them earlier.

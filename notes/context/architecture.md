@@ -23,5 +23,6 @@ model). Summary for orientation:
 
 ## Naming
 
-Human name **PaperMC Automated Driver**; slug/npm/jars `papermc-automated-driver`;
-JVM packages `io.fairyfox.papermc.automateddriver.<agent>`.
+Human name **Minecraft Automated Driver**; slug/npm/jars `minecraft-automated-driver`
+(renamed from the papermc- form 2026-07-22 — not Paper-specific); JVM packages
+`io.fairyfox.minecraft.automateddriver.<agent>`.

@@ -1,4 +1,4 @@
-# Roadmap — PaperMC Automated Driver (2026-07)
+# Roadmap — Minecraft Automated Driver (2026-07)
 
 The founding plan. One MCP server that puts **every moving part of Minecraft plugin/mod
 development and live testing behind a single tool surface Claude can drive**: building,
@@ -131,7 +131,7 @@ serves MCP over stdio; `node scripts/check-links.mjs` green; committed on `dev`.
 - GitHub Actions: build all modules, unit + MockBukkit + Fabric client gametests (Loom
   production run + XVFB on Linux runners), scorecard, CodeQL, release workflow with
   provenance — GitHub releases only.
-- Themed docs site at `fairyfox.io/papermc-automated-driver/`; hub registration
+- Themed docs site at `fairyfox.io/minecraft-automated-driver/`; hub registration
   (hub-side commit) — closing the honest gaps recorded in `status.md`.
 - Exit: mesh completeness audit rows 1–7 all `done`.
 

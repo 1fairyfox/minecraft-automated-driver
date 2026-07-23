@@ -14,7 +14,7 @@ for a fix before any public disclosure.
 
 ## Supported versions
 
-Only the latest released version of **PaperMC Automated Driver** is supported. Fixes
+Only the latest released version of **Minecraft Automated Driver** is supported. Fixes
 ship in a new release rather than as back-ports.
 
 ## Scope & threat model

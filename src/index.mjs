@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * PaperMC Automated Driver — MCP server entry point (stdio transport ONLY).
+ * Minecraft Automated Driver — MCP server entry point (stdio transport ONLY).
  *
  * Security invariants (see SECURITY.md — do not weaken):
  *  - This process never binds a network socket for MCP; it speaks stdio to its client.
@@ -30,7 +30,7 @@ async function readVersion() {
 
 export async function createServer() {
   const server = new McpServer({
-    name: 'papermc-automated-driver',
+    name: 'minecraft-automated-driver',
     version: await readVersion(),
   });
 
@@ -49,7 +49,7 @@ export async function createServer() {
           type: 'text',
           text: JSON.stringify(
             {
-              name: 'papermc-automated-driver',
+              name: 'minecraft-automated-driver',
               version: await readVersion(),
               phase: 0,
               layers: {

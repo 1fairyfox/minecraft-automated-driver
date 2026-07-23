@@ -1,7 +1,7 @@
 # Next Steps
 
-1. **Owner:** create `1fairyfox/papermc-automated-driver` on GitHub; push `dev` +
-   `main`; enable private vulnerability reporting; branch-protect `main` when CI exists.
+1. **Owner:** hub registration for `1fairyfox/minecraft-automated-driver` (repo exists,
+   pushed); enable private vulnerability reporting; branch-protect `main` when CI exists.
 2. **Phase 1 — MCP core + OS layer** (`roadmap-2026-07.md` § Phase 1):
    job model, instance registry, config file, window enumeration + `PrintWindow`
    screenshots + open/close via PowerShell helpers; c8 coverage gate wired into

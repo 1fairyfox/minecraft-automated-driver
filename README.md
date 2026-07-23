@@ -1,4 +1,4 @@
-# PaperMC Automated Driver
+# Minecraft Automated Driver
 
 **The whole Minecraft dev loop — build, boot, drive, watch — behind one MCP server.**
 

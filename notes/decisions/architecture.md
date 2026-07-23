@@ -2,6 +2,14 @@
 
 Newest on top. Each: decision → why → revisit-when.
 
+## 2026-07-22 — Rename: Minecraft Automated Driver (drops the papermc- prefix)
+Owner call the same day as founding: the tool drives clients, servers, and mods across
+platforms — it was never Paper-specific. Slug/npm `minecraft-automated-driver`, JVM
+packages `io.fairyfox.minecraft.automateddriver`, GitHub repo + docs URL follow.
+(The owner is renaming the hub group "PaperMC Plugins" → "Minecraft Plugins" and will
+rename the sibling project separately.) Revisit: never — renames get exponentially
+costlier post-publication; this one landed pre-push precisely to avoid that.
+
 ## 2026-07-22 — Host language: plain JavaScript (Node ESM), not TypeScript
 Owner call ("I don't like TypeScript"). MCP SDK works fine from JS; JSDoc types where
 they pay. Revisit: never, absent owner reversal.
