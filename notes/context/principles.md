@@ -17,3 +17,7 @@
 6. **Honest state, always.** Gaps are recorded as gaps (`status.md`), partial adoption
    as partial (`reference/adoption-manifest.md`); nothing rounds up to done.
 7. **No dead code, no dead config.** Nothing lands before the phase that uses it.
+8. **Auto-provision by default** (owner directive 2026-07-23). Anything the loop
+   needs that can be fetched unattended — server jars, Java runtimes, later Loom
+   caches and client assets — the driver downloads and sets up itself, into managed
+   disposable directories, never touching system installs.

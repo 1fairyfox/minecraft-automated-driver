@@ -1,6 +1,6 @@
 # Status — Minecraft Automated Driver
 
-**Updated:** 2026-07-23 · **Version:** 0.2.0 · **Phase:** 1 (L0 OS layer) — complete, released (v0.2.0 on `main`)
+**Updated:** 2026-07-23 · **Version:** 0.3.0 · **Phase:** 2 (L1 build/test) — complete, released (v0.3.0 on `main`)
 
 ## What this is
 
@@ -13,13 +13,17 @@ behind one tool surface. **Founding plan: `plans/roadmap-2026-07.md` — read it
 - Repo scaffolded on the mesh standards, seeded from the sibling **despawned-items**
   node (whose local standard modifications are ahead of the hub — see the provenance
   note in `CLAUDE.md` and `fairyfox-reports/2026-07-22-onboarding-scaffold.md`).
-- **Phase 1 / L0 is live**: `os_windows_list`, `os_screenshot` (PrintWindow +
-  screen fallback, real image content), `instance_open`/`instance_close`/
-  `instances_list` over an injectable PowerShell/Win32 backend. Exit criteria proven
-  with a no-mocks smoke (spawn → enumerate → screenshot → close) locally and in a
-  `windows-latest` CI job.
-- **Quality gates:** 54 tests across all layers, c8 gate ≥90% on all four metrics
-  (at ~100%), CI + CodeQL + Scorecard + Codecov + Sonar (SHA-pinned,
+- **Phase 2 / L1 is live**: `build_gradle` + the job model (`jobs_list`/`job_status`/
+  `job_log`/`job_kill`), `server_provision` (Paper auto-download, offline loopback
+  config, plugin deploy), `server_start`/`server_exec`/`server_stop`/`servers_list`
+  with auto-provisioned Java (Temurin via Adoptium when the host lacks 21+). Exit
+  criteria proven for real: the driver gradle-built the sibling plugin, booted Paper
+  1.21.11 with it, saw it enable cleanly, drove the console, stopped it. CI adds a
+  real ubuntu server-smoke (forced JRE auto-download).
+- **Phase 1 / L0 live** since 0.2.0: window list/screenshot (PrintWindow + screen
+  fallback), instance open/close, windows-latest CI smoke.
+- **Quality gates:** 80 tests across all layers, c8 gate ≥90% on all four metrics
+  (99%+ lines), CI + CodeQL + Scorecard + Codecov + Sonar (SHA-pinned,
   least-privilege), `main` branch-protected, private vulnerability reporting on.
 - Key decisions recorded in `decisions/architecture.md` (JS-not-TS host, MC 1.21.11
   target, instance+attach dual mode, loopback+token security, GitHub-only distribution).
@@ -39,9 +43,11 @@ behind one tool surface. **Founding plan: `plans/roadmap-2026-07.md` — read it
 
 ## Next
 
-1. **Phase 2** per the roadmap — job model (first consumers), Gradle build/test
-   driver, Paper server provisioning/boot/console/logs.
+1. **Phase 3** per the roadmap — the control-plane protocol spec
+   (`docs/control-protocol.md`) + the Paper agent plugin (Kotlin, MockBukkit-tested,
+   gated enable, loopback+token).
 2. Owner: finish hub registration flags (docs site is live) + the "Minecraft
    Plugins" group rename + sibling rename.
-3. Watch: `os_screenshot` "printwindow" vs GL surfaces — the "screen" fallback
-   exists; verify against a real Minecraft window in Phase 5 and default per-target.
+3. Watch: `os_screenshot` "printwindow" vs GL surfaces — verify against a real
+   Minecraft window in Phase 5; server_provision port collisions if servers run
+   concurrently (single-port default today).
