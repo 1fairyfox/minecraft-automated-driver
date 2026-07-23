@@ -30,8 +30,10 @@ test('docs site builds every page, resolves every placeholder, inserts content e
       assert.equal((html.match(/<h1[\s>]/g) ?? []).length, 1, `content not inserted exactly once in ${p}`);
       assert.match(html, /site-header/, `theme header missing in ${p}`);
       assert.match(html, /site-footer/, `theme footer missing in ${p}`);
-      assert.match(html, /https:\/\/fairyfox\.io\//, `fairyfox back-link missing in ${p}`);
-      assert.match(html, /github\.com\/1fairyfox\/minecraft-automated-driver/, `repo link missing in ${p}`);
+      // Anchored to the literal href attribute — asserts the real link target, and is
+      // not a bare-URL pattern (CodeQL js/regex/missing-regexp-anchor, alerts #5–6).
+      assert.ok(html.includes('href="https://fairyfox.io/"'), `fairyfox back-link missing in ${p}`);
+      assert.ok(html.includes('href="https://github.com/1fairyfox/minecraft-automated-driver"'), `repo link missing in ${p}`);
     }
 
     // Changelog is generated from the notes and carries every release exactly once.
