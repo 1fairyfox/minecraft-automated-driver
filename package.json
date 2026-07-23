@@ -1,6 +1,6 @@
 {
   "name": "minecraft-automated-driver",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "private": true,
   "description": "MCP server that puts the Minecraft dev loop — build, test, launch, attach, screenshot, and semantic live control of clients and servers — behind one tool surface. Stdio only; loopback-only control plane; in-game agents disabled by default.",
   "license": "Apache-2.0",
@@ -12,7 +12,7 @@
   "main": "src/index.mjs",
   "scripts": {
     "start": "node src/index.mjs",
-    "test": "c8 --include src --check-coverage --lines 90 --statements 90 --functions 90 --branches 90 node --test",
+    "test": "c8 --include src --reporter=text --reporter=lcov --check-coverage --lines 90 --statements 90 --functions 90 --branches 90 node --test",
     "check-links": "node scripts/check-links.mjs",
     "build-docs": "node scripts/build-docs.mjs"
   },

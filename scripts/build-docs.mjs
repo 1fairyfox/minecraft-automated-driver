@@ -73,7 +73,9 @@ export async function buildSite({ root = ROOT, out = OUT } = {}) {
   for (const a of ['main.css', 'fox.png', 'nav.js', 'reader.js', 'coins.js']) {
     await cp(join(THEME, 'chrome', a), join(out, a));
   }
-  await cp(join(THEME, 'chrome', 'fox.png'), join(out, 'icon.png')); // placeholder icon
+  // The project icon (owner art, 2026-07-23) — the site favicon. Hard requirement:
+  // build fails if it's missing rather than silently shipping the wrong brand.
+  await cp(join(root, 'assets', 'icon.png'), join(out, 'icon.png'));
   await writeFile(join(out, '.nojekyll'), '');
 
   for (const page of PAGES) {

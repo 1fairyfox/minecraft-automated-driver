@@ -45,5 +45,19 @@ is required and mandated by me …"
 | 13 | "we still need a docs site … finish onboarding" | Build + deploy the themed docs site (the last project-side onboarding row). Compliance, item-by-item: shared theme tokens/chrome ✓ (vendored, `docs-theme/chrome/`, version-marked) · header/footer shell ✓ · canonical three-zone subnav ✓ · two-way links to fairyfox.io ✓ (test-asserted on every page) · published at `fairyfox.io/minecraft-automated-driver/` ✓ (Pages project site, no CNAME) · legal pages matching real data practices ✓ · boundaried generated-API zone **N-A-with-reason** (no doc generator exists for the JS server yet; added when one does) · live page visually verified ✓ (fetched and inspected, not just resolved). | done |
 | 14 | (carried) hub-side docs-library entry + registry flag flip | Owner-side once the site is live. | awaiting-owner |
 
+## Escalation 3 — icon + keys (2026-07-23)
+
+Owner: "done image added to assets/icon.png, make it live, i could have sworn i had
+more keys than just scorecard, didnt the ci build step need things for the other ones
+too isnt it more limited to use the option without the key just using the public repo
+alone. proceed normally with everything that is required and mandated by me …"
+
+| # | Clause | Interpretation | Status |
+|---|--------|----------------|--------|
+| 15 | "done image added to assets/icon.png, make it live" | Site favicon now built from `assets/icon.png` (hard requirement — build fails if absent; placeholder-regression test added); README shows it; shipped in 0.1.4 and verified on the live site. | done |
+| 16 | "i could have sworn i had more keys than just scorecard" | Confirmed against the sibling repo's secret list: **CODECOV_TOKEN, SONAR_TOKEN, SCORECARD_TOKEN** (three keys). This repo's CI now carries the same integrations, token-gated exactly like the sibling: Codecov upload (non-blocking) + Sonar scan (skips itself without the token) + codecov.yml + sonar-project.properties. | done |
+| 17 | "isnt it more limited to use the option without the key" | Correct, per service: Codecov tokenless works on public repos but is rate-limited/unreliable (token recommended — the sibling's own comment); Sonar CI-scan always needs SONAR_TOKEN (only Automatic Analysis is tokenless, and it can't import coverage); Scorecard runs tokenless but the Branch-Protection check reads 0 without an admin-read PAT. Recorded in ci.yml/sonar-project.properties comments. | done (answered + wired) |
+| 18 | (follows) the three secrets on THIS repo + Codecov/Sonar project creation | Owner steps: `gh secret set CODECOV_TOKEN/SONAR_TOKEN/SCORECARD_TOKEN -R 1fairyfox/minecraft-automated-driver` and import the repo on Codecov + SonarCloud (disable Automatic Analysis if using the CI scan). Everything lights up without further code changes. | awaiting-owner |
+
 Completion check: diff final state against the owner's words clause-by-clause before
 claiming done (CLAUDE.md → Owner Mandates Become Ledgers).

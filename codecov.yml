@@ -1,0 +1,14 @@
+# Codecov configuration. Coverage arrives as c8 lcov (native format, no parser tweaks
+# needed — unlike the sibling's JaCoCo partials situation).
+
+coverage:
+  status:
+    # The owner's floor: project line coverage never below 90% (mirrors the c8 gate
+    # that already fails `npm test` locally and in CI).
+    project:
+      default:
+        target: 90%
+    # Patch coverage is informational — the project floor is the contract.
+    patch:
+      default:
+        informational: true
