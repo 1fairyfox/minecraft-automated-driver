@@ -20,6 +20,13 @@ test('docs site builds every page, resolves every placeholder, inserts content e
       assert.ok(rootFiles.includes(f), `missing root asset: ${f}`);
     }
 
+    // The favicon is the PROJECT icon (assets/icon.png), not the fox brand placeholder.
+    const [icon, fox] = await Promise.all([
+      readFile(join(out, 'icon.png')),
+      readFile(join(out, 'fox.png')),
+    ]);
+    assert.ok(!icon.equals(fox), 'icon.png is still the fox.png placeholder');
+
     const pages = [
       'index.html', 'roadmap.html', 'security.html', 'changelog.html', 'downloads.html',
       'legal/index.html', 'legal/privacy/index.html', 'legal/terms/index.html', 'legal/cookies/index.html',

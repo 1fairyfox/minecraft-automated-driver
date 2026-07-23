@@ -1,6 +1,6 @@
 # Status — Minecraft Automated Driver
 
-**Updated:** 2026-07-22 · **Version:** 0.1.3 · **Phase:** 0 (scaffold + gates + docs site) — complete, released (v0.1.3 on `main`)
+**Updated:** 2026-07-23 · **Version:** 0.1.4 · **Phase:** 0 (scaffold + gates + docs site + icon/integrations) — complete, released (v0.1.4 on `main`)
 
 ## What this is
 
@@ -30,7 +30,8 @@ behind one tool surface. **Founding plan: `plans/roadmap-2026-07.md` — read it
 | **Hub registration** (registry.yml, projects.yml — hub-side commits) | **partial** — owner registered it 2026-07-22; docs-library entry/flags await the live site (owner) |
 | Themed docs site at fairyfox.io/minecraft-automated-driver/ | done — live since 0.1.3, visually verified; no /api/ zone yet (no generator exists — added when one does) |
 | CI / CodeQL / Scorecard workflows | done — live since 0.1.2 (owner mandate pulled them forward from Phase 7) |
-| Scorecard **score** | awaiting first scheduled/main-push scan; all solo levers pulled. Owner step for full marks: `gh secret set SCORECARD_TOKEN` (fine-grained PAT, Administration:read) so Branch-Protection can score |
+| Scorecard **score** | awaiting first scheduled/main-push scan; all solo levers pulled |
+| **Repo secrets** (the sibling has all three) | **missing — owner:** `gh secret set CODECOV_TOKEN / SONAR_TOKEN / SCORECARD_TOKEN -R 1fairyfox/minecraft-automated-driver` + import the repo on Codecov/SonarCloud. CI is already wired and token-gated; lights up with no code changes |
 | Adoption manifest verify passes | see `reference/adoption-manifest.md` — supply-chain + testing rows upgraded 0.1.2 |
 
 ## Next

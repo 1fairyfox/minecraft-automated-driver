@@ -1,3 +1,5 @@
+<img src="assets/icon.png" alt="Minecraft Automated Driver icon" width="120" align="right">
+
 # Minecraft Automated Driver
 
 **The whole Minecraft dev loop — build, boot, drive, watch — behind one MCP server.**
