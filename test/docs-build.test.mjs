@@ -39,7 +39,13 @@ test('docs site builds every page, resolves every placeholder, inserts content e
     for (const v of ['0.1.0', '0.1.1', '0.1.2']) {
       assert.ok(changelog.includes(v), `changelog missing ${v}`);
     }
-    assert.equal((changelog.match(/never stale/g) ?? []).length, 1, 'changelog body duplicated');
+    // Structural marker, not prose (prose can legitimately recur inside changelog
+    // entries — bitten 2026-07-23): the generated intro paragraph exists exactly once.
+    assert.equal(
+      (changelog.match(/<p class="pg-meta">Generated from the repository/g) ?? []).length,
+      1,
+      'changelog body duplicated',
+    );
   } finally {
     await rm(out, { recursive: true, force: true });
   }
