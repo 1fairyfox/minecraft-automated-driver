@@ -1,0 +1,30 @@
+# Dependabot — keep dependencies and GitHub Actions current.
+# See notes/reference/supply-chain-hardening.md. Targets the WORKING branch (dev)
+# so update PRs match the mesh's git-flow instead of piling onto main.
+#
+# NOTE: add a `gradle` ecosystem entry per agents/<target>/ directory when the JVM
+# agent builds land (Phase 3+). Kept out until then — no config for code that
+# doesn't exist.
+
+version: 2
+updates:
+  # npm — the MCP server itself.
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    target-branch: "dev"
+    open-pull-requests-limit: 10
+    groups:
+      minor-and-patch:
+        update-types: ["minor", "patch"]
+    labels: ["dependencies"]
+
+  # GitHub Actions — keeps SHA-pinned Actions current so the OpenSSF Scorecard
+  # Pinned-Dependencies check stays green without going stale.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    target-branch: "dev"
+    labels: ["dependencies", "github-actions"]

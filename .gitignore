@@ -1,0 +1,36 @@
+# ── Cross-project reference clones (shared standard) ─────────────────────────
+# Read-only clones of OTHER repos (e.g. the fairyfox.io hub), pulled on demand.
+# Never commit them — see notes/reference/cross-project-sync.md.
+assets/references/*
+!assets/references/README.md
+
+# ── Node ─────────────────────────────────────────────────────────────────────
+node_modules/
+# package.json + package-lock.json ARE committed (Scorecard Pinned-Dependencies).
+
+# ── Gradle / JVM agent builds (each agents/<target>/ is its own Gradle build) ─
+agents/*/.gradle/
+agents/*/build/
+agents/*/run/
+agents/*/.kotlin/
+# Committed wrapper jars (agents/*/gradle/wrapper/gradle-wrapper.jar) stay tracked.
+
+# ── Local run dirs (provisioned Paper servers, spawned client workdirs) ──────
+run/
+smoke-*/
+
+# ── IDE / editor ─────────────────────────────────────────────────────────────
+.idea/
+*.iml
+*.iws
+out/
+.vscode/
+*.swp
+*~
+
+# ── OS cruft ─────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+
+# ── Local scratch (build/test helper logs) ───────────────────────────────────
+*.log

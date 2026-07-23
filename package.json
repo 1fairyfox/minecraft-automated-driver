@@ -1,0 +1,27 @@
+{
+  "name": "papermc-automated-driver",
+  "version": "0.1.0",
+  "private": true,
+  "description": "MCP server that puts the Minecraft dev loop — build, test, launch, attach, screenshot, and semantic live control of clients and servers — behind one tool surface. Stdio only; loopback-only control plane; in-game agents disabled by default.",
+  "license": "Apache-2.0",
+  "author": "Fairy Fox (https://github.com/1fairyfox)",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "main": "src/index.mjs",
+  "scripts": {
+    "start": "node src/index.mjs",
+    "test": "node --test",
+    "check-links": "node scripts/check-links.mjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.29.0"
+  },
+  "comment_sdk": "Pinned to the v1 line deliberately. SDK v2 (split @modelcontextprotocol/server / client packages) goes stable alongside the 2026-07-28 MCP spec; migrating is a planned, bounded refactor — see notes/plans/future.md. Do not mix v1 and v2.",
+  "comment_overrides": "Force @hono/node-server >= 2.0.5 (transitive of the MCP SDK's optional HTTP transport, which we never use — stdio only) to clear GHSA-frvp-7c67-39w9 (Windows path traversal in serve-static). Kept clean per the no-parked-findings bar.",
+  "overrides": {
+    "@hono/node-server": ">=2.0.5"
+  },
+  "comment_future_deps": "mineflayer (L2 protocol-bot lane) and vec3 join in Phase 5; they are NOT added early to keep the dependency surface honest. Prior-art pins live in the sibling despawned-items repo's package.json."
+}
