@@ -20,9 +20,10 @@ import { dirname, join } from 'node:path';
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 
-async function readVersion() {
+/** Read the repo VERSION file; 'unknown' when absent (root injectable for tests). */
+export async function readVersion(root = ROOT) {
   try {
-    return (await readFile(join(ROOT, 'VERSION'), 'utf8')).trim();
+    return (await readFile(join(root, 'VERSION'), 'utf8')).trim();
   } catch {
     return 'unknown';
   }

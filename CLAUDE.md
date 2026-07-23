@@ -45,8 +45,11 @@ Any change touching these rules updates `SECURITY.md` in the same commit.
 Carried from the sibling despawned-items node (owner mandate 2026-07-21), adapted:
 
 - **Coverage gate on every testable module.** JVM agents: Kover-gated ≥90% line in
-  `check`. Node MCP server: `node --test` + c8 gate once Phase 1 lands. Every feature
-  ships WITH tests at every testable layer. No feature lands untested.
+  `check`. Node MCP server: `npm test` runs under a c8 gate — ≥90% lines, statements,
+  functions AND branches on `src/`, the command FAILS below it (owner mandate
+  2026-07-22; currently 100%). Every feature ships WITH tests at every testable layer
+  (unit → protocol/in-memory client → e2e spawned-stdio; agents add MockBukkit and
+  client-gametest layers when they land). No feature lands untested.
 - **No parked findings.** No lint baselines, no skipped tests, no TODO/FIXME in source.
   Fixed or narrowly suppressed at the site with a reason — never baselined away.
 - **Scorecard kept at the repo's maximum** (≥7.0 floor): actions SHA-pinned, top-level
