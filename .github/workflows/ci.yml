@@ -68,6 +68,48 @@ jobs:
         if: env.SONAR_TOKEN != ''
         uses: SonarSource/sonarqube-scan-action@22918119ff8e1ca75a623e15c8296b6ea4fbe28f # v8.2.1
 
+  # The Paper agent is its own Gradle build (agents/paper) — Kotlin, MockBukkit tests,
+  # Kover ≥90 gate in `check`. JDK 21 is provisioned by the Gradle toolchain.
+  agent-build:
+    name: Paper agent (build + Kover ≥90)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92 # v6.2.0
+      - name: Build the agent (tests + Kover verify + shaded jar)
+        run: ./gradlew build --no-daemon --stacktrace
+        working-directory: agents/paper
+
+  # Real-machine proof of the L3 exit criteria (roadmap Phase 3): the DRIVER builds the
+  # agent, boots a real Paper server with it enabled, connects over the loopback control
+  # plane, queries state, execs a console command, and verifies a wrong token is refused.
+  agent-smoke:
+    name: Agent smoke (control plane)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92 # v6.2.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: node scripts/agent-smoke.mjs
+
   # Real-machine proof of the L1 exit criteria (roadmap Phase 2): auto-provision a
   # JRE (deliberately NO setup-java — the driver must fetch its own), download a real
   # Paper server, boot it to "Done", drive the console, stop it. No mocks.

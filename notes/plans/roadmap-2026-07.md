@@ -66,7 +66,7 @@ Repo skeleton, mesh standards carried over from the sibling node, notes system s
 this roadmap, minimal-but-real MCP server that answers `driver_status`. Exit: `npm start`
 serves MCP over stdio; `node scripts/check-links.mjs` green; committed on `dev`.
 
-### Phase 1 — MCP core + OS/host layer (L0)
+### Phase 1 — MCP core + OS/host layer (L0) — DONE (0.2.0)
 - Tool registry, config (`driver.config.json`), structured errors, instance registry
   (everything the driver knows it spawned or attached to).
   *(Amended 2026-07-23: the **job model** moved to Phase 2 — its first real consumers
@@ -78,7 +78,7 @@ serves MCP over stdio; `node scripts/check-links.mjs` green; committed on `dev`.
 - MCP tools: `instances_list/open/close`, `os_screenshot`, `jobs_*`.
 - Exit: with a vanilla client running, Claude can list it, screenshot it, and close it.
 
-### Phase 2 — Build/test orchestration (L1)
+### Phase 2 — Build/test orchestration (L1) — DONE (0.3.0)
 - **Job model** for long operations (start → job id → poll/log/kill) — lands here with
   its first consumers (moved from Phase 1, amendment 2026-07-23).
 - Gradle driver: clean/build/test against any configured project checkout (starting with
@@ -89,7 +89,7 @@ serves MCP over stdio; `node scripts/check-links.mjs` green; committed on `dev`.
 - MCP tools: `build_run`, `test_run`, `server_provision/start/stop/exec/logs`.
 - Exit: Claude can build the sibling plugin, boot a Paper server with it, and see it enable.
 
-### Phase 3 — Control-plane protocol + Paper agent (L3 server side)
+### Phase 3 — Control-plane protocol + Paper agent (L3 server side) — DONE (0.4.0)
 - **Protocol spec first** (`docs/control-protocol.md`): JSON messages over loopback WS —
   hello/auth, capability discovery, request/response + event streams. One spec, both agents.
 - Paper agent plugin (Kotlin, MockBukkit-tested): gated enable; state queries (TPS,

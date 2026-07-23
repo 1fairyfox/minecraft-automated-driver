@@ -70,6 +70,12 @@ possible"
 | 20 | (repetition) | Execute Phase 2 (L1 build/test) to exit criteria and release 0.3.0: job model, gradle driver, Paper provision/boot/console/stop tools, tests at every layer, real local + CI smokes. | done |
 | 21 | "automatically download and setup things where possible" | Elevated to a design principle (**auto-provision by default**, `context/principles.md` #8): Paper jars auto-download by version; Java auto-provisions (Temurin/Adoptium) when the host lacks 21+, proven in CI with `--force-java-download`; future phases apply the same rule (Loom caches, client assets). | done |
 
+## Escalation 6 — mandate repeated (2026-07-23, evening)
+
+| # | Clause | Interpretation | Status |
+|---|--------|----------------|--------|
+| 22 | (repetition) | Execute Phase 3: `docs/control-protocol.md` (one spec for all agents) + the Paper agent plugin (Kotlin, gated enable, loopback+token control plane, MockBukkit/Kover-gated) + the driver-side client and `agent_*` tools + real end-to-end smoke; release 0.4.0. Transport amendment recorded: NDJSON over loopback TCP instead of WebSocket (zero dependencies on both sides, identical security posture — see decisions). | done |
+
 ## Escalation 4 — mandate repeated with the backlog clear (2026-07-23)
 
 Owner: "proceed normally with everything that is required and mandated by me in as

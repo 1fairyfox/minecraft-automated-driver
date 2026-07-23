@@ -1,6 +1,6 @@
 # Status — Minecraft Automated Driver
 
-**Updated:** 2026-07-23 · **Version:** 0.3.0 · **Phase:** 2 (L1 build/test) — complete, released (v0.3.0 on `main`)
+**Updated:** 2026-07-23 · **Version:** 0.4.0 · **Phase:** 3 (L3 server agent) — complete, released (v0.4.0 on `main`)
 
 ## What this is
 
@@ -13,13 +13,16 @@ behind one tool surface. **Founding plan: `plans/roadmap-2026-07.md` — read it
 - Repo scaffolded on the mesh standards, seeded from the sibling **despawned-items**
   node (whose local standard modifications are ahead of the hub — see the provenance
   note in `CLAUDE.md` and `fairyfox-reports/2026-07-22-onboarding-scaffold.md`).
-- **Phase 2 / L1 is live**: `build_gradle` + the job model (`jobs_list`/`job_status`/
-  `job_log`/`job_kill`), `server_provision` (Paper auto-download, offline loopback
-  config, plugin deploy), `server_start`/`server_exec`/`server_stop`/`servers_list`
-  with auto-provisioned Java (Temurin via Adoptium when the host lacks 21+). Exit
-  criteria proven for real: the driver gradle-built the sibling plugin, booted Paper
-  1.21.11 with it, saw it enable cleanly, drove the console, stopped it. CI adds a
-  real ubuntu server-smoke (forced JRE auto-download).
+- **Phase 3 / L3 server agent is live**: `docs/control-protocol.md` (NDJSON over
+  loopback TCP, token-gated) + the Kotlin **Paper agent** (`agents/paper/`) —
+  disabled-by-default, self-disabling without the flag/config, 256-bit per-session
+  token, handshake-file discovery, main-thread-marshalled state/exec, join/quit
+  events. Driver tools: `agent_connect`/`agent_state`/`agent_exec`/`agent_events`/
+  `agent_disconnect`. **Full real smoke passed** (driver builds agent → boots Paper
+  enabled → connects loopback → live state → console command through agent → wrong
+  token refused → stop), local + CI.
+- **Phase 2 / L1 live** since 0.3.0: gradle driver, job model, Paper provision/boot/
+  console, auto-provisioned Java.
 - **Phase 1 / L0 live** since 0.2.0: window list/screenshot (PrintWindow + screen
   fallback), instance open/close, windows-latest CI smoke.
 - **Quality gates:** 80 tests across all layers, c8 gate ≥90% on all four metrics
@@ -43,11 +46,12 @@ behind one tool surface. **Founding plan: `plans/roadmap-2026-07.md` — read it
 
 ## Next
 
-1. **Phase 3** per the roadmap — the control-plane protocol spec
-   (`docs/control-protocol.md`) + the Paper agent plugin (Kotlin, MockBukkit-tested,
-   gated enable, loopback+token).
+1. **Phase 4** per the roadmap — the Fabric client agent (semantic UI driving by
+   name, player control, in-process screenshots, the title-screen opt-in for attach
+   mode). Same control-protocol spec, new loader.
 2. Owner: finish hub registration flags (docs site is live) + the "Minecraft
    Plugins" group rename + sibling rename.
-3. Watch: `os_screenshot` "printwindow" vs GL surfaces — verify against a real
-   Minecraft window in Phase 5; server_provision port collisions if servers run
-   concurrently (single-port default today).
+3. Watch: single-port `server_provision` default (concurrent servers collide);
+   `os_screenshot` vs GL surfaces (verify a real MC window in Phase 5); the
+   reflection gateway (Phase 6) must land its read/write session grants — flagged in
+   `docs/control-protocol.md`.

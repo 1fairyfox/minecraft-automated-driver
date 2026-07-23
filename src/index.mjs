@@ -23,6 +23,7 @@ import { createJobRegistry } from './jobs.mjs';
 import { startGradleJob } from './build.mjs';
 import { deployPlugin, provisionServer, createServerManager } from './paper.mjs';
 import { ensureJava } from './java.mjs';
+import { readHandshake, connectAgent } from './agent.mjs';
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 
@@ -56,6 +57,11 @@ export async function createServer({
   const provision = l1.provision ?? provisionServer;
   const deploy = l1.deploy ?? deployPlugin;
   const java = l1.java ?? ensureJava;
+  // L3 seams (control-plane client), injectable for the protocol tests.
+  const agentHandshake = l1.agentHandshake ?? readHandshake;
+  const agentConnect = l1.agentConnect ?? connectAgent;
+  const agents = new Map(); // connectionId → live agent connection
+  let agentCounter = 0;
   const version = await readVersion(root);
 
   const server = new McpServer({ name: 'minecraft-automated-driver', version });
@@ -72,12 +78,12 @@ export async function createServer({
     async () => text({
       name: 'minecraft-automated-driver',
       version,
-      phase: 2,
+      phase: 3,
       layers: {
         l0_os: 'available — windows list/screenshot, instance open/close (Windows host)',
         l1_build_test: 'available — gradle jobs, paper provision/boot/console, auto-provisioned java',
         l2_protocol_bots: 'planned (Phase 5)',
-        l3_agents: 'planned (Phases 3-4)',
+        l3_agents: 'available (server) — Paper agent control plane: connect/state/exec/events',
       },
       transport: 'stdio-only',
     }),
@@ -408,6 +414,107 @@ export async function createServer({
         windows = { unavailable: err.message };
       }
       return text({ spawned: instances.list(), windows });
+    },
+  );
+
+  // ── L3: in-game agent control plane (docs/control-protocol.md) ──────────────
+
+  server.registerTool(
+    'agent_connect',
+    {
+      title: 'Connect to an in-game agent',
+      description:
+        'Read a running agent\'s loopback handshake (from its server/client data dir) ' +
+        'and open an authenticated control-plane session. The agent must have been ' +
+        'enabled (launch flag / config / in-game opt-in). Returns a connectionId and ' +
+        'the agent\'s advertised capabilities.',
+      inputSchema: {
+        dir: z.string().min(1).describe('The server directory whose agent to connect to'),
+        agentName: z.string().optional().describe('Plugin/mod folder name (default: the Paper agent)'),
+      },
+    },
+    async ({ dir, agentName }) => {
+      try {
+        const hs = await agentHandshake(dir, agentName ? { agentName } : {});
+        const conn = await agentConnect({ port: hs.port, token: hs.token });
+        const id = `a${++agentCounter}`;
+        agents.set(id, conn);
+        return text({ connectionId: id, agent: conn.welcome.agent, capabilities: conn.welcome.capabilities, events: conn.welcome.events });
+      } catch (err) {
+        return failure(err);
+      }
+    },
+  );
+
+  const withAgent = (id) => {
+    const conn = agents.get(id);
+    if (!conn) throw new Error(`no agent connection ${id}`);
+    return conn;
+  };
+
+  server.registerTool(
+    'agent_state',
+    {
+      title: 'Query live game state',
+      description: 'Ask a connected agent for TPS, players, worlds, and version.',
+      inputSchema: { connectionId: z.string() },
+    },
+    async ({ connectionId }) => {
+      try {
+        return text(await withAgent(connectionId).request('state'));
+      } catch (err) {
+        return failure(err);
+      }
+    },
+  );
+
+  server.registerTool(
+    'agent_exec',
+    {
+      title: 'Run a command via the agent',
+      description: 'Dispatch a console command through a connected agent (main-thread, gated).',
+      inputSchema: { connectionId: z.string(), command: z.string().min(1) },
+    },
+    async ({ connectionId, command }) => {
+      try {
+        return text(await withAgent(connectionId).request('exec', { command }));
+      } catch (err) {
+        return failure(err);
+      }
+    },
+  );
+
+  server.registerTool(
+    'agent_events',
+    {
+      title: 'Drain buffered agent events',
+      description: 'Return the events (player joins/quits, …) the agent has pushed since connect.',
+      inputSchema: { connectionId: z.string() },
+    },
+    async ({ connectionId }) => {
+      try {
+        return text(withAgent(connectionId).events());
+      } catch (err) {
+        return failure(err);
+      }
+    },
+  );
+
+  server.registerTool(
+    'agent_disconnect',
+    {
+      title: 'Disconnect from an agent',
+      description: 'Close a control-plane session. The agent keeps serving others until disabled.',
+      inputSchema: { connectionId: z.string() },
+    },
+    async ({ connectionId }) => {
+      try {
+        withAgent(connectionId).close();
+        agents.delete(connectionId);
+        return text({ disconnected: connectionId });
+      } catch (err) {
+        return failure(err);
+      }
     },
   );
 
