@@ -1,0 +1,43 @@
+name: CI
+
+# The full local gate, run remotely: install exactly the lockfile, run the test suite,
+# check every doc link. Grows with the phases (agent gradle builds, client gametests)
+# — see notes/plans/roadmap-2026-07.md Phase 7.
+
+on:
+  push:
+    branches: [dev, main]
+  pull_request:
+    branches: [main]
+
+# Least privilege at the top level (supply-chain-hardening standard).
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install (lockfile-exact)
+        run: npm ci
+
+      - name: Test
+        run: npm test
+
+      - name: Audit (fail on any known vulnerability — no parked findings)
+        run: npm audit --audit-level=low
+
+      - name: Link check
+        run: node scripts/check-links.mjs

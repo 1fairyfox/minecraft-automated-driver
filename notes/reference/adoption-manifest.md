@@ -17,8 +17,8 @@ of the hub — divergences get flagged on the first fairyfox check-for-updates r
 | planning | **adopted** | roadmap + next-steps/future written before code |
 | process-reports | **adopted** | First report written (2026-07-22 onboarding-scaffold) |
 | cross-project-sync / adopting-updates | **copied-only** | Flow documented; no sync run yet from this node |
-| engineering-quality / testing | **partial** | Bar written into CLAUDE.md; c8 gate not yet wired (Phase 1) |
-| supply-chain-hardening | **partial** | Lockfile committed, dependabot configured; no CI/scorecard/CodeQL yet (Phase 7) |
+| engineering-quality / testing | **adopted** (0.1.2) | c8 gate ≥90% (all 4 metrics) wired into `npm test`, 100% at arming; three test layers on the existing code; audit gate in CI. Verify: gate-fails-below-90 ✓ layers ✓ no-skips ✓ no-TODO ✓ |
+| supply-chain-hardening | **adopted** (0.1.2) | Lockfile ✓ dependabot ✓ CI ✓ CodeQL ✓ Scorecard workflow ✓ SHA-pinned actions ✓ top-level contents:read ✓ branch protection ✓ private vuln reporting ✓. Gap: SCORECARD_TOKEN secret = owner step |
 | repo-hygiene | **adopted** | .gitignore/.gitattributes/.editorconfig in place; no dead config committed |
 | dependencies | **copied-only** | |
 | deployment | **copied-only** | GitHub-only stance decided; release workflow is Phase 7 |

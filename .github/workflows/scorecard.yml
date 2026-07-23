@@ -1,0 +1,56 @@
+name: Scorecard supply-chain security
+
+# OpenSSF Scorecard — scores the repo's security posture (branch protection, pinned actions,
+# token permissions, dangerous workflows, dependency-update tooling, etc.) and uploads the results
+# to the Security → Code scanning tab with actionable fixes. `publish_results: true` also feeds the
+# public Scorecard API that backs the README badge. Runs weekly + when branch-protection changes +
+# on push to main. Free for public repositories. Quality bar: ≥ 7.0 floor, driven toward max.
+
+on:
+  branch_protection_rule:
+  schedule:
+    - cron: "30 6 * * 1" # Mondays 06:30 UTC
+  push:
+    branches: [main]
+
+# Read-only by default; the job below elevates only what it needs.
+permissions: read-all
+
+jobs:
+  analysis:
+    name: Scorecard analysis
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write # upload the SARIF results
+      id-token: write # publish results to the OpenSSF API (for the badge)
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Run analysis
+        uses: ossf/scorecard-action@4eaacf0543bb3f2c246792bd56e8cdeffafb205a # v2.4.3
+        with:
+          results_file: results.sarif
+          results_format: sarif
+          publish_results: true
+          # The default GITHUB_TOKEN cannot read branch-protection settings, so the Branch-Protection
+          # check scores 0 even though protection IS enabled on main. Provide a repo-admin-read PAT as
+          # the secret SCORECARD_TOKEN to unlock it. Falls back to the default token when the secret is
+          # absent, so the scan never breaks.
+          # PAT: fine-grained, this repo, permissions Administration:read + Contents:read + Metadata:read
+          # (or a classic PAT with `repo`), saved as: gh secret set SCORECARD_TOKEN
+          repo_token: ${{ secrets.SCORECARD_TOKEN || github.token }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: SARIF file
+          path: results.sarif
+          retention-days: 5
+
+      - name: Upload to code scanning
+        uses: github/codeql-action/upload-sarif@54f647b7e1bb85c95cddabcd46b0c578ec92bc1a # v4.36.3
+        with:
+          sarif_file: results.sarif

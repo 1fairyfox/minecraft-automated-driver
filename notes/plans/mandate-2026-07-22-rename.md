@@ -12,5 +12,27 @@ Owner's words quoted verbatim; one row per clause. Statuses:
 | 5 | "proceed normally with everything that is required and mandated by me in as many phases as needed, ensure this reaches the completion i asked for in full" | Run the default workflow end-to-end on the rename: phases named, edits, notes/changelog/VERSION, full local gate, commit on `dev`, git-flow release `dev → main` (`--no-ff`, tagged), back-merge. | done |
 | 6 | "if you alreadfy copied everything i did and implemented those procedures or in the process of then theres not really anything extra to do beforehand in the hub" | Confirmation of the Phase-0 approach (procedures implemented project-side; hub paperwork owner-side, at their leisure). No action. | done (no-op) |
 
+## Escalation — mandate repeated (same day)
+
+Owner: "if theres more to do, proceed normally with everything that is required and
+mandated by me in as many phases as needed, ensure this reaches the completion i asked
+for in full in as many phases needed" — and, mid-execution: "this needs thorough
+testing by the way following all the testing quality guidelines and layers ive spoken
+about a lot, code coverage needs to be >= 90% scorecard needs to be preferably in the
+7.x range . Yea all those things you said, alright then you got this, make sure
+everything is done in full like i said earlier"
+
+Per the repetition rule, previously-disclosed NOT-done items that are executable
+escalate to do-now:
+
+| # | Clause | Interpretation | Status |
+|---|--------|----------------|--------|
+| 7 | "thorough testing … all the testing quality guidelines and layers … code coverage needs to be >= 90%" | The c8 ≥90% gate moves from "Phase 1" to NOW; tests at every testable layer of the current code: unit (version handling), protocol (in-memory MCP client round-trip), e2e (spawned stdio server, real JSON-RPC session). Gate wired into `npm test` so builds FAIL below 90. | done |
+| 8 | "scorecard needs to be preferably in the 7.x range" | Every solo-fixable Scorecard lever pulled: SHA-pinned actions, top-level `contents: read`, CodeQL, Scorecard workflow, dependabot, lockfile, SECURITY.md, license, 0 vulns, branch protection on `main` w/ required checks. The number itself is computed by OpenSSF after the workflow runs on `main`; solo-unfixable checks (Code-Review, Contributors, CII, Fuzzing) noted, not chased. SCORECARD_TOKEN PAT is an owner step for the Branch-Protection check to score. | done (levers) / awaiting-first-scan (number) |
+| 9 | Private vulnerability reporting (disclosed NOT-done last round, repeated without descoping) | Enable via API. | done |
+| 10 | CI (disclosed NOT-done; real code now exists to test) | ci.yml (npm ci/test+coverage-gate/audit/link-check), codeql.yml (javascript), scorecard.yml — all SHA-pinned, least-privilege. | done |
+| 11 | Branch protection ("when CI exists" — CI now exists) | Protect `main`: required status checks from the release PR's observed check names; release 0.1.2 lands via PR with all checks green. | done |
+| 12 | Hub registration / group rename / sibling rename | Explicitly owner-claimed ("ill do the paperwork", "gives me some thing to do on the hub", "ill name the other project later") — NOT escalated; overriding an explicit owner reservation isn't latitude. | awaiting-owner |
+
 Completion check: diff final state against the owner's words clause-by-clause before
 claiming done (CLAUDE.md → Owner Mandates Become Ledgers).
