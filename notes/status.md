@@ -17,9 +17,9 @@ behind one tool surface. **Founding plan: `plans/roadmap-2026-07.md` — read it
   title-screen "Automated Testing…" opt-in + flag gating, loopback+token control plane,
   semantic **screen introspection + click/key by name**. Driver tools `agent_screen`/
   `agent_click`/`agent_key`; `agent_connect` handles both handshake layouts. Pure logic
-  JUnit + JaCoCo ≥90; **real headless client gametest** (XVFB, gated to release PRs)
-  boots a rendering client and drives it over loopback (title screen → click by name →
-  wrong-token refused).
+  JUnit + JaCoCo ≥90; the mod **compiles against the real client** in CI (API usage
+  verified). The headless client gametest is written+wired but its XVFB boot stalls on
+  the runner → **manual-dispatch-only, not a required gate yet** (see below).
 - **Phase 3 / L3 Paper agent live** since 0.4.0: control-protocol spec + Kotlin Paper
   agent (state/exec/events), disabled-by-default, real e2e smoke.
 - **Phase 2 / L1 live** since 0.3.0: gradle driver, job model, Paper provision/boot/
@@ -52,12 +52,15 @@ behind one tool surface. **Founding plan: `plans/roadmap-2026-07.md` — read it
    Mineflayer (L2) protocol-bot lane.
 2. Owner: finish hub registration flags (docs site is live) + the "Minecraft
    Plugins" group rename + sibling rename.
-3. Watch / deferred honestly:
-   - Fabric client-agent **in-process framebuffer screenshot** op not yet added — the
-     gametest uses the framework's `takeScreenshot`; a driver-facing `agent_screenshot`
-     op is a Phase-5 follow-up.
-   - Fabric agent Java **not yet in CodeQL** (paper Kotlin + JS are) — heavy Loom compile;
-     add when the gametest infra is warm.
+3. **Fabric client gametest — headless boot stall (open):** the real-client gametest is
+   written+wired but its client boot hangs under XVFB on the runner (a run exceeded 3h in
+   asset setup). It's **manual-dispatch-only + timeout-capped, not a required gate**.
+   Fix + promote to required is the top Phase-4.x follow-up. Likely suspects: XVFB/GL
+   context on the runner, or the gametest awaiting a client state my `runTest` doesn't
+   reach; needs the actual run log, which requires a completing (non-hung) run to capture.
+4. Watch / deferred honestly:
+   - Fabric client-agent **in-process framebuffer screenshot** op — Phase-5 follow-up.
+   - Fabric agent Java **not yet in CodeQL** (paper Kotlin + JS are) — add when warm.
    - Player move/look and teleport ops beyond keybindings — Phase 5/6.
    - single-port `server_provision`; `os_screenshot` vs GL surfaces; the reflection
      gateway's read/write grants (Phase 6, flagged in `docs/control-protocol.md`).
