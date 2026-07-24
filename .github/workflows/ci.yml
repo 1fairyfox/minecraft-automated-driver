@@ -167,6 +167,25 @@ jobs:
       - run: npm ci
       - run: node scripts/agent-smoke.mjs
 
+  # Real-machine proof of the L2 exit criteria (roadmap Phase 5): boot a local offline
+  # Paper server and join it with a REAL Mineflayer bot (a Minecraft client on the wire),
+  # then read state, chat, read inventory, and walk. No mocks.
+  bot-smoke:
+    name: Bot smoke (Mineflayer)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: node scripts/bot-smoke.mjs --force-java-download
+
   # Real-machine proof of the L1 exit criteria (roadmap Phase 2): auto-provision a
   # JRE (deliberately NO setup-java — the driver must fetch its own), download a real
   # Paper server, boot it to "Done", drive the console, stop it. No mocks.

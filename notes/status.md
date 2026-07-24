@@ -1,6 +1,6 @@
 # Status — Minecraft Automated Driver
 
-**Updated:** 2026-07-24 · **Version:** 0.5.0 · **Phase:** 4 (L3 Fabric client agent) — complete, released (v0.5.0 on `main`)
+**Updated:** 2026-07-24 · **Version:** 0.6.0 · **Phase:** 5 (L2 Mineflayer lane) — complete, released (v0.6.0 on `main`)
 
 ## What this is
 
@@ -13,6 +13,10 @@ behind one tool surface. **Founding plan: `plans/roadmap-2026-07.md` — read it
 - Repo scaffolded on the mesh standards, seeded from the sibling **despawned-items**
   node (whose local standard modifications are ahead of the hub — see the provenance
   note in `CLAUDE.md` and `fairyfox-reports/2026-07-22-onboarding-scaffold.md`).
+- **Phase 5 / L2 Mineflayer lane is live**: `src/bot.mjs` + `bot_join`/`bot_status`/
+  `bot_chat`/`bot_messages`/`bot_move`/`bot_inventory`/`bots_list`/`bot_quit`. Unit-tested
+  against a fake bot; **real smoke** (local + CI `bot-smoke`) boots offline Paper and
+  joins with a real Mineflayer bot → state → chat → inventory → move → quit.
 - **Phase 4 / L3 Fabric client agent is live**: `agents/fabric/` (Java + Loom) — the
   title-screen "Automated Testing…" opt-in + flag gating, loopback+token control plane,
   semantic **screen introspection + click/key by name**. Driver tools `agent_screen`/
@@ -47,9 +51,10 @@ behind one tool surface. **Founding plan: `plans/roadmap-2026-07.md` — read it
 
 ## Next
 
-1. **Phase 5** per the roadmap — client lifecycle automation: Loom dev-client spawns
-   from the driver (`client_spawn`), the attach handshake flow end to end, and the
-   Mineflayer (L2) protocol-bot lane.
+1. **Phase 6** per the roadmap — the reflection gateway: read arbitrary live game state
+   by path through a reflection/mixin gateway (reads session-gated), writes allowlisted +
+   opened per session. Plus the deferred Phase-5 tail: driver-orchestrated instanced
+   `client_spawn` (Loom production client) + the attach-handshake flow end to end.
 2. Owner: finish hub registration flags (docs site is live) + the "Minecraft
    Plugins" group rename + sibling rename.
 3. Watch / deferred honestly:

@@ -1,6 +1,6 @@
 {
   "name": "minecraft-automated-driver",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "private": true,
   "description": "MCP server that puts the Minecraft dev loop — build, test, launch, attach, screenshot, and semantic live control of clients and servers — behind one tool surface. Stdio only; loopback-only control plane; in-game agents disabled by default.",
   "license": "Apache-2.0",
@@ -18,6 +18,8 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.29.0",
+    "mineflayer": "4.37.1",
+    "vec3": "0.1.10",
     "zod": "3.25.76"
   },
   "devDependencies": {
@@ -26,9 +28,10 @@
   },
   "comment_coverage": "Owner mandate 2026-07-22: coverage >= 90% is a GATE, not a goal — the test script fails below it, across lines/statements/functions/branches, scoped to src/ (scripts/ are repo tooling, test/ is the suite itself). c8 propagates NODE_V8_COVERAGE to child processes, so the spawned-stdio e2e test counts toward coverage of the entry-point guard.",
   "comment_sdk": "Pinned to the v1 line deliberately. SDK v2 (split @modelcontextprotocol/server / client packages) goes stable alongside the 2026-07-28 MCP spec; migrating is a planned, bounded refactor — see notes/plans/future.md. Do not mix v1 and v2.",
-  "comment_overrides": "Force @hono/node-server >= 2.0.5 (transitive of the MCP SDK's optional HTTP transport, which we never use — stdio only) to clear GHSA-frvp-7c67-39w9 (Windows path traversal in serve-static). Kept clean per the no-parked-findings bar.",
+  "comment_overrides": "Force @hono/node-server >= 2.0.5 (transitive of the MCP SDK's optional HTTP transport, which we never use — stdio only) to clear GHSA-frvp-7c67-39w9 (Windows path traversal in serve-static); force uuid >= 11.1.1 to clear GHSA-w5hq-g745-h8pq (buffer bounds check), which arrives transitively through mineflayer → minecraft-protocol → prismarine-auth/yggdrasil (same fix the sibling repo uses). Kept clean per the no-parked-findings bar.",
   "overrides": {
-    "@hono/node-server": ">=2.0.5"
+    "@hono/node-server": ">=2.0.5",
+    "uuid": "^11.1.1"
   },
   "comment_future_deps": "mineflayer (L2 protocol-bot lane) and vec3 join in Phase 5; they are NOT added early to keep the dependency surface honest. Prior-art pins live in the sibling despawned-items repo's package.json."
 }

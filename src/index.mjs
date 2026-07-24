@@ -24,6 +24,7 @@ import { startGradleJob } from './build.mjs';
 import { deployPlugin, provisionServer, createServerManager } from './paper.mjs';
 import { ensureJava } from './java.mjs';
 import { readHandshake, connectAgent } from './agent.mjs';
+import { createBotRegistry } from './bot.mjs';
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 
@@ -62,6 +63,21 @@ export async function createServer({
   const agentConnect = l1.agentConnect ?? connectAgent;
   const agents = new Map(); // connectionId → live agent connection
   let agentCounter = 0;
+  // L2 protocol-bot lane. The mineflayer factory is injected for tests; the default is the
+  // real one, imported lazily so the driver starts even where mineflayer isn't installed.
+  const botsFactory = l1.bots ?? (async () => {
+    const mf = await import('mineflayer');
+    const { Vec3 } = await import('vec3');
+    return createBotRegistry({
+      createBot: (opts) => {
+        const bot = mf.default.createBot(opts);
+        bot.vec3 = (x, y, z) => new Vec3(x, y, z);
+        return bot;
+      },
+    });
+  });
+  let bots = l1.botRegistry ?? null;
+  const getBots = async () => (bots ??= await botsFactory());
   const version = await readVersion(root);
 
   const server = new McpServer({ name: 'minecraft-automated-driver', version });
@@ -78,11 +94,11 @@ export async function createServer({
     async () => text({
       name: 'minecraft-automated-driver',
       version,
-      phase: 4,
+      phase: 5,
       layers: {
         l0_os: 'available — windows list/screenshot, instance open/close (Windows host)',
         l1_build_test: 'available — gradle jobs, paper provision/boot/console, auto-provisioned java',
-        l2_protocol_bots: 'planned (Phase 5)',
+        l2_protocol_bots: 'available — Mineflayer bots: join/move/chat/inventory/messages',
         l3_agents: 'available — Paper agent (state/exec/events) + Fabric client agent (screen/click/key by name)',
       },
       transport: 'stdio-only',
@@ -573,6 +589,67 @@ export async function createServer({
         withAgent(connectionId).close();
         agents.delete(connectionId);
         return text({ disconnected: connectionId });
+      } catch (err) {
+        return failure(err);
+      }
+    },
+  );
+
+  // ── L2: Mineflayer protocol bots ────────────────────────────────────────────
+
+  server.registerTool(
+    'bot_join',
+    {
+      title: 'Join a server with a bot',
+      description:
+        'Connect a headless Mineflayer bot (protocol-level, no render) to a LOCAL ' +
+        'online-mode=false test server. Resolves once spawned. Returns a botId.',
+      inputSchema: {
+        host: z.string().optional().describe('Default 127.0.0.1'),
+        port: z.number().int().positive().optional().describe('Default 25565'),
+        username: z.string().optional().describe('Default DriverBot'),
+        timeoutMs: z.number().int().positive().optional(),
+      },
+    },
+    async (args) => {
+      try {
+        return text(await (await getBots()).join(args));
+      } catch (err) {
+        return failure(err);
+      }
+    },
+  );
+
+  const botTool = (name, title, description, extra, run) =>
+    server.registerTool(name, { title, description, inputSchema: { botId: z.string(), ...extra } },
+      async ({ botId, ...rest }) => {
+        try {
+          return text(await run(await getBots(), botId, rest));
+        } catch (err) {
+          return failure(err);
+        }
+      });
+
+  botTool('bot_status', 'Bot status', 'Position + vitals of a connected bot.', {},
+    (reg, id) => reg.status(id));
+  botTool('bot_chat', 'Bot chat/command', 'Send a chat line or command as the bot.',
+    { message: z.string().min(1) }, (reg, id, { message }) => reg.chat(id, message));
+  botTool('bot_messages', 'Bot messages', 'Chat the bot has received (buffered).',
+    { tail: z.number().int().positive().optional() }, (reg, id, { tail }) => reg.messages(id, { tail }));
+  botTool('bot_move', 'Move a bot', 'Walk the bot toward an absolute block position (by facing + forward).',
+    { x: z.number(), y: z.number(), z: z.number(), timeoutMs: z.number().int().positive().optional() },
+    (reg, id, args) => reg.moveTo(id, args));
+  botTool('bot_inventory', 'Bot inventory', 'List the items in the bot\'s inventory.', {},
+    (reg, id) => reg.inventory(id));
+  botTool('bot_quit', 'Disconnect a bot', 'Disconnect and forget a bot.', {},
+    (reg, id) => reg.quit(id));
+
+  server.registerTool(
+    'bots_list',
+    { title: 'List bots', description: 'Every Mineflayer bot the driver is running.', inputSchema: {} },
+    async () => {
+      try {
+        return text((await getBots()).list());
       } catch (err) {
         return failure(err);
       }
