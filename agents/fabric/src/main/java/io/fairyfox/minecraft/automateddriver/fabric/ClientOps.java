@@ -7,6 +7,7 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.Element;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.widget.ClickableWidget;
+import net.minecraft.client.gui.widget.PressableWidget;
 import net.minecraft.client.option.KeyBinding;
 
 /**
@@ -46,33 +47,31 @@ public final class ClientOps {
             return false;
         }
         ClickableWidget widget = clickable.get(match.get().index());
-        if (!widget.active) {
+        if (!widget.active || !(widget instanceof PressableWidget pressable)) {
             return false;
         }
-        widget.onPress();
+        pressable.onPress();
         return true;
     }
 
-    /** Invoke a keybinding by its translation-key id (e.g. "key.jump"), for one tick. */
+    /** Invoke a keybinding by its id (e.g. "key.jump"), pressed for one tick. */
     public static boolean pressKey(String keyId) {
-        for (KeyBinding binding : MinecraftClient.getInstance().options.allKeys) {
-            if (binding.getTranslationKey().equals(keyId)) {
-                binding.setPressed(true);
-                return true;
-            }
+        KeyBinding binding = KeyBinding.byId(keyId);
+        if (binding == null) {
+            return false;
         }
-        return false;
+        binding.setPressed(true);
+        return true;
     }
 
     /** Release a keybinding pressed via {@link #pressKey}. */
     public static boolean releaseKey(String keyId) {
-        for (KeyBinding binding : MinecraftClient.getInstance().options.allKeys) {
-            if (binding.getTranslationKey().equals(keyId)) {
-                binding.setPressed(false);
-                return true;
-            }
+        KeyBinding binding = KeyBinding.byId(keyId);
+        if (binding == null) {
+            return false;
         }
-        return false;
+        binding.setPressed(false);
+        return true;
     }
 
     // ── widget extraction (client-coupled) ───────────────────────────────────

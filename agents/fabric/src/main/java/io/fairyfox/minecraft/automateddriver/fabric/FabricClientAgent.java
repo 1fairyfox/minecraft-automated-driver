@@ -3,7 +3,7 @@ package io.fairyfox.minecraft.automateddriver.fabric;
 import java.nio.file.Path;
 import java.security.SecureRandom;
 import net.fabricmc.api.ClientModInitializer;
-import net.fabricmc.fabric.api.client.lifecycle.v1.ClientLifecycleEvents;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
 import net.fabricmc.fabric.api.client.screen.v1.Screens;
 import net.fabricmc.loader.api.FabricLoader;
