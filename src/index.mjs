@@ -586,6 +586,125 @@ export async function createServer({
   );
 
   server.registerTool(
+    'agent_position',
+    {
+      title: 'Read the player position',
+      description:
+        'Report the client player\'s position and camera: {inWorld,x,y,z,yaw,pitch}. ' +
+        '`inWorld:false` when at a menu/not in a world. Fabric agents.',
+      inputSchema: { connectionId: z.string() },
+    },
+    async ({ connectionId }) => {
+      try {
+        return text(await withAgent(connectionId).request('position'));
+      } catch (err) {
+        return failure(err);
+      }
+    },
+  );
+
+  server.registerTool(
+    'agent_move',
+    {
+      title: 'Walk by holding a movement key',
+      description:
+        'Walk the client player by holding a movement direction for a duration, across real ' +
+        'game ticks — returns the from/to position and the horizontal distance travelled. ' +
+        'Requires being in a world. Fabric agents.',
+      inputSchema: {
+        connectionId: z.string(),
+        direction: z.enum(['forward', 'back', 'left', 'right', 'jump', 'sneak']),
+        ms: z.number().int().positive().max(5000).optional().describe('How long to hold (default 400ms, capped 5s)'),
+      },
+    },
+    async ({ connectionId, direction, ms }) => {
+      try {
+        return text(await withAgent(connectionId).request('move', { direction, ms }));
+      } catch (err) {
+        return failure(err);
+      }
+    },
+  );
+
+  server.registerTool(
+    'agent_look',
+    {
+      title: 'Point the camera',
+      description:
+        'Set the client player\'s yaw and/or pitch (degrees) — aim by value, never a mouse ' +
+        'delta. Requires being in a world. Fabric agents.',
+      inputSchema: {
+        connectionId: z.string(),
+        yaw: z.number().optional(),
+        pitch: z.number().optional(),
+      },
+    },
+    async ({ connectionId, yaw, pitch }) => {
+      try {
+        return text(await withAgent(connectionId).request('look', { yaw, pitch }));
+      } catch (err) {
+        return failure(err);
+      }
+    },
+  );
+
+  server.registerTool(
+    'agent_type',
+    {
+      title: 'Type into a text field',
+      description:
+        'Type text into a field on the current screen — the focused field, else the sole ' +
+        'field, else one whose label contains `name`. Fabric agents.',
+      inputSchema: {
+        connectionId: z.string(),
+        text: z.string(),
+        name: z.string().optional().describe('Optional label to disambiguate among multiple fields'),
+      },
+    },
+    async ({ connectionId, text: value, name }) => {
+      try {
+        return text(await withAgent(connectionId).request('type', { name, text: value }));
+      } catch (err) {
+        return failure(err);
+      }
+    },
+  );
+
+  server.registerTool(
+    'agent_slots',
+    {
+      title: 'Read a container\'s slots',
+      description:
+        'List the slots of the open container/handled screen by index (item name + count), ' +
+        'or {handled:false} if the current screen is not a container. Fabric agents.',
+      inputSchema: { connectionId: z.string() },
+    },
+    async ({ connectionId }) => {
+      try {
+        return text(await withAgent(connectionId).request('slots'));
+      } catch (err) {
+        return failure(err);
+      }
+    },
+  );
+
+  server.registerTool(
+    'agent_close_screen',
+    {
+      title: 'Close the current screen',
+      description: 'Dismiss the open screen (the Escape equivalent) — drive menus shut by intent. Fabric agents.',
+      inputSchema: { connectionId: z.string() },
+    },
+    async ({ connectionId }) => {
+      try {
+        return text(await withAgent(connectionId).request('close'));
+      } catch (err) {
+        return failure(err);
+      }
+    },
+  );
+
+  server.registerTool(
     'agent_events',
     {
       title: 'Drain buffered agent events',

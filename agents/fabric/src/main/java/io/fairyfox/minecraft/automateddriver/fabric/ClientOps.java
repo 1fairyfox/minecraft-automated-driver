@@ -14,11 +14,17 @@ import net.minecraft.client.gl.Framebuffer;
 import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.Element;
 import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.client.gui.screen.ingame.HandledScreen;
 import net.minecraft.client.gui.widget.ClickableWidget;
 import net.minecraft.client.gui.widget.PressableWidget;
+import net.minecraft.client.gui.widget.TextFieldWidget;
 import net.minecraft.client.input.MouseInput;
+import net.minecraft.client.network.ClientPlayerEntity;
 import net.minecraft.client.option.KeyBinding;
+import net.minecraft.client.util.InputUtil;
 import net.minecraft.client.util.ScreenshotRecorder;
+import net.minecraft.item.ItemStack;
+import net.minecraft.screen.slot.Slot;
 
 /**
  * The client-coupled v1 capabilities (docs/control-protocol.md). Everything here touches
@@ -68,12 +74,21 @@ public final class ClientOps {
         return true;
     }
 
-    /** Invoke a keybinding by its id (e.g. "key.jump"), pressed for one tick. */
+    /**
+     * Press a keybinding by its id (e.g. "key.inventory"). Sets the held state AND fires an
+     * edge (`onKeyPressed`) so both continuous bindings (read via {@code isPressed()}) and the
+     * edge-triggered ones (read via {@code wasPressed()} — inventory/chat toggles, drop, etc.)
+     * actually fire. The key is resolved via the binding's default; a client with rebound keys
+     * is a known follow-up (documented in the control protocol).
+     */
     public static boolean pressKey(String keyId) {
         KeyBinding binding = KeyBinding.byId(keyId);
         if (binding == null) {
             return false;
         }
+        InputUtil.Key key = binding.getDefaultKey();
+        KeyBinding.setKeyPressed(key, true);
+        KeyBinding.onKeyPressed(key);
         binding.setPressed(true);
         return true;
     }
@@ -84,6 +99,7 @@ public final class ClientOps {
         if (binding == null) {
             return false;
         }
+        KeyBinding.setKeyPressed(binding.getDefaultKey(), false);
         binding.setPressed(false);
         return true;
     }
@@ -127,6 +143,152 @@ public final class ClientOps {
                 future.completeExceptionally(t);
             }
         });
+    }
+
+    // ── in-world driving (client-coupled) ────────────────────────────────────
+
+    /** Movement directions → their keybinding ids. Driving is by intent, never scancodes. */
+    private static final Map<String, String> MOVE_KEYS = Map.of(
+        "forward", "key.forward", "back", "key.back", "left", "key.left", "right", "key.right",
+        "jump", "key.jump", "sneak", "key.sneak");
+
+    /** Player position + camera, or {@code inWorld:false} when not in a world. */
+    public static Map<String, Object> position() {
+        ClientPlayerEntity player = MinecraftClient.getInstance().player;
+        Map<String, Object> out = new LinkedHashMap<>();
+        if (player == null) {
+            out.put("inWorld", false);
+            return out;
+        }
+        out.put("inWorld", true);
+        out.put("x", player.getX());
+        out.put("y", player.getY());
+        out.put("z", player.getZ());
+        out.put("yaw", player.getYaw());
+        out.put("pitch", player.getPitch());
+        return out;
+    }
+
+    /** Close the current screen (the Escape/dismiss equivalent) — drive menus shut by intent. */
+    public static Map<String, Object> closeScreen() {
+        boolean had = MinecraftClient.getInstance().currentScreen != null;
+        MinecraftClient.getInstance().setScreen(null);
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("closed", had);
+        return out;
+    }
+
+    /** Point the camera: set yaw and/or pitch (degrees). Requires being in a world. */
+    public static Map<String, Object> look(Float yaw, Float pitch) {
+        ClientPlayerEntity player = MinecraftClient.getInstance().player;
+        if (player == null) {
+            throw new IllegalStateException("not in a world");
+        }
+        if (yaw != null) {
+            player.setYaw(yaw);
+        }
+        if (pitch != null) {
+            player.setPitch(pitch);
+        }
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("yaw", player.getYaw());
+        out.put("pitch", player.getPitch());
+        return out;
+    }
+
+    /**
+     * Hold or release a movement keybinding BY INTENT (forward/back/left/right/jump/sneak).
+     * The caller (control server) presses, lets the client tick, then releases — so the walk
+     * happens across real game ticks, exactly as a held key would.
+     */
+    public static boolean setMove(String direction, boolean pressed) {
+        String keyId = direction == null ? null : MOVE_KEYS.get(direction);
+        if (keyId == null) {
+            return false;
+        }
+        KeyBinding binding = KeyBinding.byId(keyId);
+        if (binding == null) {
+            return false;
+        }
+        binding.setPressed(pressed);
+        return true;
+    }
+
+    /**
+     * Type into a text field on the current screen. Prefers the focused field, else the sole
+     * field, else one whose narration message contains {@code name}. Text entry is what makes
+     * "direct-connect by address" and world naming drivable without pixels.
+     */
+    public static Map<String, Object> type(String name, String text) {
+        Screen screen = MinecraftClient.getInstance().currentScreen;
+        Map<String, Object> out = new LinkedHashMap<>();
+        if (screen == null) {
+            out.put("typed", false);
+            out.put("error", "no screen open");
+            return out;
+        }
+        TextFieldWidget field = resolveTextField(screen, name);
+        if (field == null) {
+            out.put("typed", false);
+            out.put("error", "no matching text field");
+            return out;
+        }
+        field.setText(text == null ? "" : text);
+        out.put("typed", true);
+        out.put("text", field.getText());
+        return out;
+    }
+
+    /** List a container/handled screen's slots by index (item name + count), or handled:false. */
+    public static Map<String, Object> slots() {
+        Screen screen = MinecraftClient.getInstance().currentScreen;
+        Map<String, Object> out = new LinkedHashMap<>();
+        if (!(screen instanceof HandledScreen<?> handled)) {
+            out.put("handled", false);
+            out.put("slots", List.of());
+            return out;
+        }
+        out.put("handled", true);
+        out.put("screen", screen.getClass().getSimpleName());
+        List<Map<String, Object>> slotList = new ArrayList<>();
+        List<Slot> list = handled.getScreenHandler().slots;
+        for (int i = 0; i < list.size(); i++) {
+            ItemStack stack = list.get(i).getStack();
+            Map<String, Object> slot = new LinkedHashMap<>();
+            slot.put("index", i);
+            slot.put("empty", stack.isEmpty());
+            slot.put("item", stack.isEmpty() ? "" : stack.getName().getString());
+            slot.put("count", stack.getCount());
+            slotList.add(slot);
+        }
+        out.put("slots", slotList);
+        return out;
+    }
+
+    private static TextFieldWidget resolveTextField(Screen screen, String name) {
+        List<TextFieldWidget> fields = new ArrayList<>();
+        for (Element element : screen.children()) {
+            if (element instanceof TextFieldWidget field) {
+                fields.add(field);
+            }
+        }
+        if (fields.isEmpty()) {
+            return null;
+        }
+        for (TextFieldWidget field : fields) {
+            if (field.isFocused()) {
+                return field;
+            }
+        }
+        if (name != null && !name.isBlank()) {
+            for (TextFieldWidget field : fields) {
+                if (field.getMessage() != null && field.getMessage().getString().contains(name)) {
+                    return field;
+                }
+            }
+            return null;
+        }
+        return fields.size() == 1 ? fields.get(0) : null;
     }
 
     // ── widget extraction (client-coupled) ───────────────────────────────────

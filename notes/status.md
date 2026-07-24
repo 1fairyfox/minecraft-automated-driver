@@ -1,6 +1,6 @@
 # Status — Minecraft Automated Driver
 
-**Updated:** 2026-07-24 · **Version:** 0.8.0 · **Phase:** closing Phase 4 gaps — screenshot + honest coverage shipped (v0.8.0); in-world driving next (0.9.0)
+**Updated:** 2026-07-24 · **Version:** 0.9.0 · **Phase:** Phase 4 complete in full (v0.9.0); next: goal-level autonomy on the L2 lane (nav/chop/hunt/craft/build)
 
 ## What this is
 
@@ -37,6 +37,15 @@ behind one tool surface. **Founding plan: `plans/roadmap-2026-07.md` — read it
   refused), timeout-capped. **Still deferred to 0.9.0** (the rest of the Phase-4 exit):
   in-world movement/look/position, text entry, container-slot driving. CodeQL now truly
   analyzes the Fabric Java agent (was scanning only Paper).
+- **Phase 4 in-world driving is live (0.9.0)**: agent ops `position`/`look`/`move`/`type`/
+  `slots`/`close` (+ `key` now edge-triggers so inventory/chat open by intent); driver tools
+  `agent_position`/`agent_move`/`agent_look`/`agent_type`/`agent_slots`/`agent_close_screen`.
+  The client gametest now creates a real singleplayer world and drives it: position in-world,
+  walk (asserting the player actually moved), aim, type into chat, open the inventory and read
+  its slots, screenshot. **Phase 4 exit met in full.**
+- **Next — goal-level autonomy (L2 Mineflayer lane)**: navigate (A\*), chop/gather, hunt/combat
+  with weapons+tools, craft recipes, build/place — intents in, multi-step out. Owner directive
+  (ledger Esc. 11); plan `plans/goal-level-autonomy-2026-07.md`.
 - **Phase 3 / L3 Paper agent live** since 0.4.0: control-protocol spec + Kotlin Paper
   agent (state/exec/events), disabled-by-default, real e2e smoke.
 - **Phase 2 / L1 live** since 0.3.0: gradle driver, job model, Paper provision/boot/

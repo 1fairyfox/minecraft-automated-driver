@@ -1,8 +1,9 @@
 // Shared between the protocol suite and the stdio e2e (a plain helper — NOT a test
 // file: importing a test file re-registers its tests in the importer's process).
 export const EXPECTED_TOOLS = [
-  'agent_click', 'agent_connect', 'agent_disconnect', 'agent_events', 'agent_exec',
-  'agent_key', 'agent_screen', 'agent_screenshot', 'agent_state',
+  'agent_click', 'agent_close_screen', 'agent_connect', 'agent_disconnect', 'agent_events',
+  'agent_exec', 'agent_key', 'agent_look', 'agent_move', 'agent_position', 'agent_screen',
+  'agent_screenshot', 'agent_slots', 'agent_state', 'agent_type',
   'bot_chat', 'bot_inventory', 'bot_join', 'bot_messages', 'bot_move', 'bot_quit',
   'bot_status', 'bots_list',
   'build_gradle', 'client_kill', 'client_spawn', 'clients_list',

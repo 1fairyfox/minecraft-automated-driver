@@ -64,22 +64,31 @@ data directory:
 
 ## v1 capabilities (Fabric client agent)
 
-Advertised as `capabilities:["screen","click","key","screenshot"]`. Every op is
-marshalled to the client render thread. UI is driven **by name, never by pixel** —
-the whole point of the client agent.
+Advertised as `capabilities:["screen","click","key","screenshot","position","look",
+"move","type","slots","close"]`. Every op is marshalled to the client render thread. UI
+and the player are driven **by name / by intent, never by pixel** — the whole point of
+the client agent.
 
 | op | params | result |
 |----|--------|--------|
 | `screen` | — | `{"tree":"{\"screen\":\"…\",\"widgets\":[{label,type,index,x,y,width,height,active}]}"}` — the current screen as a named widget tree (screen/widget class names are the runtime/intermediary names on a production client) |
 | `click` | `{"name":"Options"}` | `{"clicked":true/false}` — resolves the widget by exact-or-unique-substring label and presses it; ambiguous names are refused, never guessed |
-| `key` | `{"key":"key.forward","down":true}` | `{"applied":true/false}` — sets a keybinding pressed/released by its translation id |
+| `key` | `{"key":"key.inventory","down":true}` | `{"applied":true/false}` — sets a keybinding by its translation id; `down` also fires an edge (`onKeyPressed`) so edge-triggered opens (inventory/chat) work, not just held keys. Rebound keys are a documented follow-up (resolved via the binding's default) |
 | `screenshot` | — | `{"png_base64":"…","width":<int>,"height":<int>,"bytes":<int>}` — the rendered frame grabbed off the GPU framebuffer (async readback), PNG-encoded; unaffected by window occlusion, unlike the OS path |
+| `position` | — | `{"inWorld":true/false,"x","y","z","yaw","pitch"}` — the player pose, or just `inWorld:false` at a menu |
+| `look` | `{"yaw":90.0,"pitch":15.0}` (either optional) | `{"yaw","pitch"}` — aim the camera by value; requires being in a world |
+| `move` | `{"direction":"forward","ms":1200}` | `{"direction","ms","from","to","dist"}` — hold a movement direction (forward/back/left/right/jump/sneak) across real ticks (`ms` capped at 5s), reporting the horizontal distance walked; always releases the key even on error |
+| `type` | `{"text":"localhost","name":"…"?}` | `{"typed":true/false,"text"}` — set a text field's contents (focused field, else sole field, else one whose label contains `name`) |
+| `slots` | — | `{"handled":true,"screen":"…","slots":[{index,empty,item,count}]}` or `{"handled":false,"slots":[]}` — read the open container's slots by index |
+| `close` | — | `{"closed":true/false}` — dismiss the current screen (the Escape equivalent) |
 
-Additions (player movement/look/position, text entry, container slots, teleports,
-inventory, world edits, the reflection gateway with its read/write grants) arrive in
-later phases as new `op`s + capability strings; the envelope above does not change.
-**Reflection writes will require an explicit per-session grant op** — recorded here so
-no implementation forgets it.
+Additions (goal-level tasks — pathfinding/navigation, gather/chop, hunt/combat, craft,
+build/place; teleports; world edits; the reflection gateway with its read/write grants)
+arrive in later phases as new `op`s + capability strings; the envelope above does not
+change. Goal-level autonomy is planned primarily on the **L2 Mineflayer lane** (which
+already has A\* pathfinding, PvP, block-collection and tooling), with the L3 client agent
+staying the semantic UI/player-input surface. **Reflection writes will require an explicit
+per-session grant op** — recorded here so no implementation forgets it.
 
 ## Threading rules (agent side)
 

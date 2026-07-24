@@ -177,7 +177,11 @@ function fakeAgentConn(agent = 'paper') {
   return {
     conn: {
       welcome: agent === 'fabric'
-        ? { agent: 'fabric', capabilities: ['screen', 'click', 'key', 'screenshot'], events: [] }
+        ? {
+          agent: 'fabric',
+          capabilities: ['screen', 'click', 'key', 'screenshot', 'position', 'look', 'move', 'type', 'slots', 'close'],
+          events: [],
+        }
         : { agent: 'paper', capabilities: ['state', 'exec'], events: ['player_join'] },
       request: async (op, params) => {
         if (op === 'state') return { players: [{ name: 'Alice' }], worlds: [], version: 'MockPaper' };
@@ -192,6 +196,12 @@ function fakeAgentConn(agent = 'paper') {
             width: 1, height: 1, bytes: 67,
           };
         }
+        if (op === 'position') return { inWorld: true, x: 1, y: 64, z: 2, yaw: 0, pitch: 0 };
+        if (op === 'look') return { yaw: params.yaw ?? 0, pitch: params.pitch ?? 0 };
+        if (op === 'move') return { direction: params.direction, ms: params.ms ?? 400, dist: 1.5, from: {}, to: {} };
+        if (op === 'type') return { typed: true, text: params.text };
+        if (op === 'slots') return { handled: true, screen: 'InventoryScreen', slots: [{ index: 0, empty: true, item: '', count: 0 }] };
+        if (op === 'close') return { closed: true };
         throw new Error(`unknown op ${op}`);
       },
       events: () => [{ name: 'player_join', data: { name: 'Bob' }, at: 'now' }],
@@ -245,7 +255,8 @@ test('a Fabric client agent drives screen/click/key by name over the same tools'
   );
   assert.equal(opts.kind, 'fabric');
   assert.equal(c.agent, 'fabric');
-  assert.deepEqual(c.capabilities, ['screen', 'click', 'key', 'screenshot']);
+  assert.deepEqual(c.capabilities,
+    ['screen', 'click', 'key', 'screenshot', 'position', 'look', 'move', 'type', 'slots', 'close']);
 
   const screen = JSON.parse((await client.callTool({ name: 'agent_screen', arguments: { connectionId: c.connectionId } })).content[0].text);
   assert.match(screen.tree, /TitleScreen/);
@@ -265,6 +276,23 @@ test('a Fabric client agent drives screen/click/key by name over the same tools'
   // The driver plumbs the base64 through untouched; decoding it must yield a real PNG (magic bytes).
   const png = Buffer.from(shot.png_base64, 'base64');
   assert.deepEqual([...png.subarray(0, 4)], [0x89, 0x50, 0x4e, 0x47]);
+
+  // In-world driving tools plumb through the same control plane.
+  const pos = JSON.parse((await client.callTool({ name: 'agent_position', arguments: { connectionId: c.connectionId } })).content[0].text);
+  assert.equal(pos.inWorld, true);
+  const mv = JSON.parse((await client.callTool({ name: 'agent_move', arguments: { connectionId: c.connectionId, direction: 'forward', ms: 500 } })).content[0].text);
+  assert.equal(mv.direction, 'forward');
+  assert.ok(mv.dist > 0);
+  const lk = JSON.parse((await client.callTool({ name: 'agent_look', arguments: { connectionId: c.connectionId, yaw: 90 } })).content[0].text);
+  assert.equal(lk.yaw, 90);
+  const ty = JSON.parse((await client.callTool({ name: 'agent_type', arguments: { connectionId: c.connectionId, text: 'hi there' } })).content[0].text);
+  assert.equal(ty.typed, true);
+  assert.equal(ty.text, 'hi there');
+  const sl = JSON.parse((await client.callTool({ name: 'agent_slots', arguments: { connectionId: c.connectionId } })).content[0].text);
+  assert.equal(sl.handled, true);
+  assert.equal(sl.slots[0].index, 0);
+  const cl = JSON.parse((await client.callTool({ name: 'agent_close_screen', arguments: { connectionId: c.connectionId } })).content[0].text);
+  assert.equal(cl.closed, true);
   await close();
 });
 
@@ -277,11 +305,14 @@ test('agent_connect surfaces a missing handshake, and ops reject unknown connect
   assert.match(missing.content[0].text, /is the agent enabled/);
 
   for (const name of ['agent_state', 'agent_exec', 'agent_events', 'agent_disconnect',
-    'agent_screen', 'agent_click', 'agent_key', 'agent_screenshot']) {
+    'agent_screen', 'agent_click', 'agent_key', 'agent_screenshot',
+    'agent_position', 'agent_move', 'agent_look', 'agent_type', 'agent_slots', 'agent_close_screen']) {
     const args = { connectionId: 'a99' };
     if (name === 'agent_exec') args.command = 'x';
     if (name === 'agent_click') args.name = 'x';
     if (name === 'agent_key') args.key = 'key.jump';
+    if (name === 'agent_move') args.direction = 'forward';
+    if (name === 'agent_type') args.text = 'x';
     const res = await client.callTool({ name, arguments: args });
     assert.equal(res.isError, true, `${name} should reject unknown connection`);
   }

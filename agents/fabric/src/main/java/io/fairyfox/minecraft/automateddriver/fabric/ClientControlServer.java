@@ -71,7 +71,8 @@ public final class ClientControlServer {
             welcome.put("type", "welcome");
             welcome.put("v", 1);
             welcome.put("agent", "fabric");
-            welcome.put("capabilities", List.of("screen", "click", "key", "screenshot"));
+            welcome.put("capabilities", List.of(
+                "screen", "click", "key", "screenshot", "position", "look", "move", "type", "slots", "close"));
             welcome.put("events", List.of());
             writeLine(writer, welcome);
             String line;
@@ -118,8 +119,73 @@ public final class ClientControlServer {
                 return Map.of("applied", ok);
             });
             case "screenshot" -> screenshot(id);
+            case "position" -> onClient(id, ClientOps::position);
+            case "look" -> onClient(id, () -> ClientOps.look(floatOrNull(req, "yaw"), floatOrNull(req, "pitch")));
+            case "type" -> onClient(id, () -> ClientOps.type(str(req, "name"), str(req, "text")));
+            case "slots" -> onClient(id, ClientOps::slots);
+            case "close" -> onClient(id, ClientOps::closeScreen);
+            case "move" -> move(id, str(req, "direction"), intOr(req, "ms", 400));
             default -> res(id, false, Map.of("error", "unknown op: " + op));
         };
+    }
+
+    /**
+     * Walk by holding a movement keybinding across real game ticks: press on the render thread,
+     * let the client tick for {@code ms} (bounded), then release and report the position delta.
+     * The wait must be OFF the render thread (holding it would freeze the very ticks that move
+     * the player). A failed/timed-out move always releases the key so nothing stays stuck.
+     */
+    private Map<String, Object> move(int id, String direction, int ms) {
+        int hold = Math.max(1, Math.min(ms, 5000));
+        try {
+            Map<String, Object> from = runOnClient(() -> {
+                if (!ClientOps.setMove(direction, true)) {
+                    throw new IllegalArgumentException("unknown direction: " + direction);
+                }
+                return ClientOps.position();
+            });
+            Thread.sleep(hold);
+            Map<String, Object> to = runOnClient(() -> {
+                ClientOps.setMove(direction, false);
+                return ClientOps.position();
+            });
+            Map<String, Object> out = new LinkedHashMap<>();
+            out.put("direction", direction);
+            out.put("ms", hold);
+            out.put("from", from);
+            out.put("to", to);
+            out.put("dist", horizontalDistance(from, to));
+            return res(id, true, out);
+        } catch (Exception e) {
+            try {
+                runOnClient(() -> {
+                    ClientOps.setMove(direction, false);
+                    return Map.of();
+                });
+            } catch (Exception ignored) {
+                // best-effort release; the primary error is reported below
+            }
+            Throwable cause = e.getCause() != null ? e.getCause() : e;
+            return res(id, false, Map.of("error", cause.getMessage() == null ? cause.toString() : cause.getMessage()));
+        }
+    }
+
+    private static double horizontalDistance(Map<String, Object> from, Map<String, Object> to) {
+        if (!(from.get("x") instanceof Number fx) || !(to.get("x") instanceof Number tx)
+            || !(from.get("z") instanceof Number fz) || !(to.get("z") instanceof Number tz)) {
+            return 0.0;
+        }
+        double dx = tx.doubleValue() - fx.doubleValue();
+        double dz = tz.doubleValue() - fz.doubleValue();
+        return Math.sqrt(dx * dx + dz * dz);
+    }
+
+    private static Float floatOrNull(JsonObject o, String key) {
+        return o.has(key) && !o.get(key).isJsonNull() ? o.get(key).getAsFloat() : null;
+    }
+
+    private static int intOr(JsonObject o, String key, int fallback) {
+        return o.has(key) && !o.get(key).isJsonNull() ? o.get(key).getAsInt() : fallback;
     }
 
     /**
@@ -146,22 +212,27 @@ public final class ClientControlServer {
         }
     }
 
-    /** Marshal an op to the client render thread and await it (bounded). */
+    /** Marshal an op to the client render thread and await it (bounded), wrapped as a response. */
     private Map<String, Object> onClient(int id, java.util.function.Supplier<Map<String, Object>> work) {
         try {
-            CompletableFuture<Map<String, Object>> future = new CompletableFuture<>();
-            MinecraftClient.getInstance().execute(() -> {
-                try {
-                    future.complete(work.get());
-                } catch (Throwable t) {
-                    future.completeExceptionally(t);
-                }
-            });
-            return res(id, true, future.get(10, TimeUnit.SECONDS));
+            return res(id, true, runOnClient(work));
         } catch (Exception e) {
             Throwable cause = e.getCause() != null ? e.getCause() : e;
             return res(id, false, Map.of("error", cause.getMessage() == null ? cause.toString() : cause.getMessage()));
         }
+    }
+
+    /** Run work on the client render thread and return its result (bounded); throws on failure. */
+    private Map<String, Object> runOnClient(java.util.function.Supplier<Map<String, Object>> work) throws Exception {
+        CompletableFuture<Map<String, Object>> future = new CompletableFuture<>();
+        MinecraftClient.getInstance().execute(() -> {
+            try {
+                future.complete(work.get());
+            } catch (Throwable t) {
+                future.completeExceptionally(t);
+            }
+        });
+        return future.get(10, TimeUnit.SECONDS);
     }
 
     private Map<String, Object> res(int id, boolean ok, Map<String, Object> body) {
