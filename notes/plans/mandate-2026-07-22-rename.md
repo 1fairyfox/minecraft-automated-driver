@@ -110,7 +110,27 @@ the Java client agent would be strictly worse. Plan: `notes/plans/goal-level-aut
 |---|--------|----------------|--------|
 | 30 | "A path navigation with moving, jumping" | A\* pathfinding on the L2 lane: `bot_goto` (navigate to coords/blocks with walk+jump+parkour via mineflayer-pathfinder), proven by a real smoke that pathfinds across a booted server. | in-progress |
 | 31 | "'chop down a tree' or 'hunt down zombies' … use weapons and tools" | Goal tasks on L2: `bot_collect`/`bot_chop` (mineflayer-collectblock, auto-equips the right tool via mineflayer-tool), `bot_hunt`/`bot_attack` (mineflayer-pvp; equips a weapon), so a single intent runs many steps. | in-progress |
-| 32 | "give it a recipe … make the recipe … build/make and/or place something … not … command by command" | Goal tasks on L2: `bot_craft` (recipe by item name/count, uses a crafting table when needed), `bot_place`/`bot_build` (place a block / a small structure from a spec). The through-line: intents in, multi-step execution out. | in-progress |
+| 32 | "give it a recipe … make the recipe … build/make and/or place something … not … command by command" | Goal tasks: `craft` (recipe by item name/count, uses a crafting table when needed), `place`/`build` (place a block / a small structure from a spec). The through-line: intents in, multi-step execution out. | in-progress |
+
+## Escalation 12 — architecture correction (2026-07-24) — orchestration is MCP-side
+
+Owner, verbatim: *"shouldnt some of the stuff like high level goals or navigation be on the
+MCP side to be able to universally handle any client or plugin or server rather than just a
+particular target and shoukdnt it be able to handle server and client testing at the same
+time if needed like it might be more efficient to tackle both if needed idk i dont want it to
+be fragile or hacky or have any low quality hacks/code"*
+
+Correction accepted **before any autonomy code was written** (no rework). Rows 30–32 are
+re-homed: the goal/navigation intelligence moves to an **MCP-side, backend-agnostic
+orchestration layer** driven by advertised capabilities; backends (Mineflayer bot, Fabric
+client agent, Paper server agent) are interchangeable **executors**, not the home of the
+goals. Plus first-class **multi-target scenarios** (server + client + bots together). Revised
+plan: `notes/plans/goal-level-autonomy-2026-07.md`.
+
+| # | Clause | Interpretation | Status |
+|---|--------|----------------|--------|
+| 33 | "high level goals or navigation … on the MCP side … universally handle any client or plugin or server … not … fragile or hacky" | Build the capability registry + executor interface + goal engine MCP-side (0.10.0), so goals plan over *advertised capabilities* and dispatch to any executor; a shared MCP-side A\* over a backend-provided world snapshot makes navigation universal (not Mineflayer-only). The capability contract is the anti-hack device. | in-progress |
+| 34 | "handle server and client testing at the same time if needed … more efficient to tackle both" | First-class **scenario** orchestration (0.12.0): provision + coordinate a server + client + bots together with lifecycle + guaranteed teardown, instead of hand-wiring `server_start`/`client_spawn`/`bot_join` per call. | in-progress |
 
 ## Escalation 9 — mandate repeated (2026-07-24) — "Dont take shortcuts" → Phase 5 instance mode
 
