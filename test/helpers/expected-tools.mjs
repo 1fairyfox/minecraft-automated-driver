@@ -11,4 +11,5 @@ export const EXPECTED_TOOLS = [
   'job_kill', 'job_log', 'job_status', 'jobs_list',
   'os_screenshot', 'os_windows_list',
   'server_exec', 'server_provision', 'server_start', 'server_stop', 'servers_list',
+  'targets_list',
 ];

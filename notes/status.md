@@ -1,6 +1,6 @@
 # Status — Minecraft Automated Driver
 
-**Updated:** 2026-07-24 · **Version:** 0.9.0 · **Phase:** Phase 4 complete in full (v0.9.0); next: goal-level autonomy on the L2 lane (nav/chop/hunt/craft/build)
+**Updated:** 2026-07-24 · **Version:** 0.10.0 · **Phase:** goal-level autonomy — the MCP-side capability/executor seam shipped (v0.10.0); next: the universal navigation goal (0.11.0)
 
 ## What this is
 
@@ -43,9 +43,15 @@ behind one tool surface. **Founding plan: `plans/roadmap-2026-07.md` — read it
   The client gametest now creates a real singleplayer world and drives it: position in-world,
   walk (asserting the player actually moved), aim, type into chat, open the inventory and read
   its slots, screenshot. **Phase 4 exit met in full.**
-- **Next — goal-level autonomy (L2 Mineflayer lane)**: navigate (A\*), chop/gather, hunt/combat
-  with weapons+tools, craft recipes, build/place — intents in, multi-step out. Owner directive
-  (ledger Esc. 11); plan `plans/goal-level-autonomy-2026-07.md`.
+- **Goal-level autonomy — the capability seam is live (0.10.0)**: `src/executors.mjs` wraps
+  every bot/agent as an executor (advertised capabilities + a uniform `invoke`); a target
+  registry finds executors *by capability*; `targets_list` shows them all. This is the
+  **MCP-side, backend-agnostic** foundation the owner directed (Esc. 12) — goals plan over
+  capabilities, never a hard-coded backend.
+- **Next — the universal navigation goal (0.11.0)**: `goal_navigate` with a pure MCP-side A\*
+  planner over a world-snapshot capability; Mineflayer satisfies it natively (pathfinder),
+  composition proven against client-agent primitives. Then scenarios (0.12.0), gather/combat
+  (0.13.0), craft/build (0.14.0). Plan `plans/goal-level-autonomy-2026-07.md`.
 - **Phase 3 / L3 Paper agent live** since 0.4.0: control-protocol spec + Kotlin Paper
   agent (state/exec/events), disabled-by-default, real e2e smoke.
 - **Phase 2 / L1 live** since 0.3.0: gradle driver, job model, Paper provision/boot/
