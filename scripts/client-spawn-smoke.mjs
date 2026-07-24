@@ -39,11 +39,16 @@ try {
   // screens Minecraft shows first. On a fresh run dir 1.21 opens the "Welcome to Minecraft!"
   // accessibility onboarding (class_8032) with a "Continue" button before the title screen;
   // a real driver must click through it (which also exercises another click-by-name).
+  // Readiness is keyed on "Singleplayer" — the one title-screen button whose label is
+  // stable and ellipsis-free. (The Options button's label is literally "Options..." with a
+  // trailing ellipsis, so an exact "Options" match never fires even though the screen is up;
+  // the agent's click-by-name still resolves "Options" → "Options..." — the gametest proves
+  // that — so we detect on Singleplayer, then click Options.)
   const titleDeadline = Date.now() + 180_000;
   let clickedContinue = false;
   const hasLabel = (s, label) => s.tree && s.tree.includes(`"label":"${label}"`);
   let screen = await conn.request('screen');
-  while (!hasLabel(screen, 'Options')) {
+  while (!hasLabel(screen, 'Singleplayer')) {
     if (Date.now() > titleDeadline) throw new Error(`title screen never became ready: ${JSON.stringify(screen)}`);
     if (!clickedContinue && hasLabel(screen, 'Continue')) {
       const cont = await conn.request('click', { name: 'Continue' });
@@ -52,7 +57,7 @@ try {
     await new Promise((r) => setTimeout(r, 1000));
     screen = await conn.request('screen');
   }
-  say('   title screen is up (Options present).');
+  say('   title screen is up (Singleplayer present).');
   const click = await conn.request('click', { name: 'Options' });
   if (!click.clicked) throw new Error(`click-by-name 'Options' failed: ${JSON.stringify(click)}`);
   say('   introspected + clicked "Options" by name.');
