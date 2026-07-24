@@ -1,0 +1,12 @@
+name: minecraft-automated-driver-agent
+version: "${version}"
+main: io.fairyfox.minecraft.automateddriver.paper.PaperAgent
+api-version: '1.21'
+author: Fairy Fox
+description: >
+  In-game control-plane agent for Minecraft Automated Driver. DISABLED BY DEFAULT:
+  it self-disables unless launched with -Dfairyfox.driver.enable=true or explicitly
+  enabled in its config.yml. When enabled it listens on 127.0.0.1 only, on an
+  ephemeral port, authenticated with a per-session token (see SECURITY.md and
+  docs/control-protocol.md in the repository). GitHub releases only.
+website: https://fairyfox.io/minecraft-automated-driver/

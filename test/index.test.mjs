@@ -73,14 +73,80 @@ test('tools/list exposes exactly the Phase-1 surface', async () => {
   await close();
 });
 
-test('driver_status reports phase 2 with L0 and L1 available', async () => {
+test('driver_status reports phase 3 with L0, L1, and the server agent available', async () => {
   const { client, close } = await connected();
   const result = await client.callTool({ name: 'driver_status', arguments: {} });
   const status = JSON.parse(result.content[0].text);
-  assert.equal(status.phase, 2);
+  assert.equal(status.phase, 3);
   assert.match(status.layers.l0_os, /^available/);
   assert.match(status.layers.l1_build_test, /^available/);
+  assert.match(status.layers.l3_agents, /^available/);
   assert.equal(status.transport, 'stdio-only');
+  await close();
+});
+
+// ── protocol: L3 agent tools (fake handshake + fake connection) ──────────────
+
+function fakeAgentConn() {
+  const closed = { value: false };
+  return {
+    conn: {
+      welcome: { agent: 'paper', capabilities: ['state', 'exec'], events: ['player_join'] },
+      request: async (op, params) => {
+        if (op === 'state') return { players: [{ name: 'Alice' }], worlds: [], version: 'MockPaper' };
+        if (op === 'exec') return { dispatched: true, detail: null, echo: params.command };
+        throw new Error(`unknown op ${op}`);
+      },
+      events: () => [{ name: 'player_join', data: { name: 'Bob' }, at: 'now' }],
+      close: () => { closed.value = true; },
+    },
+    closed,
+  };
+}
+
+test('agent lifecycle: connect → state → exec → events → disconnect', async () => {
+  const { conn, closed } = fakeAgentConn();
+  let handshakeDir = null;
+  const { client, close } = await connected({
+    l1: {
+      agentHandshake: async (dir) => { handshakeDir = dir; return { v: 1, port: 5000, token: 'tok' }; },
+      agentConnect: async ({ port, token }) => { assert.equal(port, 5000); assert.equal(token, 'tok'); return conn; },
+    },
+  });
+  const c = JSON.parse((await client.callTool({ name: 'agent_connect', arguments: { dir: 'C:/srv' } })).content[0].text);
+  assert.equal(handshakeDir, 'C:/srv');
+  assert.equal(c.agent, 'paper');
+  assert.deepEqual(c.capabilities, ['state', 'exec']);
+
+  const state = JSON.parse((await client.callTool({ name: 'agent_state', arguments: { connectionId: c.connectionId } })).content[0].text);
+  assert.equal(state.players[0].name, 'Alice');
+
+  const exec = JSON.parse((await client.callTool({ name: 'agent_exec', arguments: { connectionId: c.connectionId, command: 'say hi' } })).content[0].text);
+  assert.equal(exec.dispatched, true);
+  assert.equal(exec.echo, 'say hi');
+
+  const events = JSON.parse((await client.callTool({ name: 'agent_events', arguments: { connectionId: c.connectionId } })).content[0].text);
+  assert.equal(events[0].name, 'player_join');
+
+  const dc = JSON.parse((await client.callTool({ name: 'agent_disconnect', arguments: { connectionId: c.connectionId } })).content[0].text);
+  assert.equal(dc.disconnected, c.connectionId);
+  assert.equal(closed.value, true);
+  await close();
+});
+
+test('agent_connect surfaces a missing handshake, and ops reject unknown connections', async () => {
+  const { client, close } = await connected({
+    l1: { agentHandshake: async () => { throw new Error('no agent handshake — is the agent enabled?'); } },
+  });
+  const missing = await client.callTool({ name: 'agent_connect', arguments: { dir: 'C:/srv' } });
+  assert.equal(missing.isError, true);
+  assert.match(missing.content[0].text, /is the agent enabled/);
+
+  for (const name of ['agent_state', 'agent_exec', 'agent_events', 'agent_disconnect']) {
+    const args = name === 'agent_exec' ? { connectionId: 'a99', command: 'x' } : { connectionId: 'a99' };
+    const res = await client.callTool({ name, arguments: args });
+    assert.equal(res.isError, true, `${name} should reject unknown connection`);
+  }
   await close();
 });
 

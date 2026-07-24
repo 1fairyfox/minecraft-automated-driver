@@ -2,6 +2,17 @@
 
 Newest on top. Each: decision → why → revisit-when.
 
+## 2026-07-23 — Control-plane transport: NDJSON over loopback TCP, not WebSocket
+The roadmap sketched WebSocket. At implementation the choice was NDJSON over a
+`127.0.0.1` TCP socket: both sides get it with zero dependencies (`java.net.ServerSocket`
+/ node `net`), so no WS library is shaded into agent jars and there's no extra attack
+surface — and the security posture is identical (same loopback-only bind, same
+per-session token). Revisit only if a browser client ever needs to speak it directly.
+
+## 2026-07-23 — Job model moved from Phase 1 to Phase 2 (recorded earlier, restated)
+Landed with its first real consumers (gradle/server ops), per the no-dead-code
+principle. See the roadmap amendment.
+
 ## 2026-07-22 — Docs site assembled by a Node script, not Gradle
 The sibling renders its site from Gradle because its build is Gradle; here the repo
 root is Node, so `scripts/build-docs.mjs` (+ `marked`, pinned) fills the same

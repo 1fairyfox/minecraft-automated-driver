@@ -1,0 +1,11 @@
+# Minecraft Automated Driver — Paper agent.
+#
+# The agent ships DISABLED. It enables only when either:
+#   - the server is launched with -Dfairyfox.driver.enable=true   (instanced test runs), or
+#   - `enabled` below is set to true                              (explicit operator opt-in).
+# Otherwise it self-disables on startup and exposes nothing.
+#
+# When enabled, the control plane binds 127.0.0.1 ONLY, on an ephemeral port, with a
+# fresh 256-bit session token (written to this plugin's data folder as handshake.json,
+# deleted on shutdown). There is deliberately no setting to widen the bind address.
+enabled: false
