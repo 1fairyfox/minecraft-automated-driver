@@ -1,6 +1,6 @@
 # Status — Minecraft Automated Driver
 
-**Updated:** 2026-07-24 · **Version:** 0.7.0 · **Phase:** 5 — complete incl. the instanced client spawn, released (v0.7.0 on `main`)
+**Updated:** 2026-07-24 · **Version:** 0.8.0 · **Phase:** closing Phase 4 gaps — screenshot + honest coverage shipped (v0.8.0); in-world driving next (0.9.0)
 
 ## What this is
 
@@ -28,11 +28,15 @@ behind one tool surface. **Founding plan: `plans/roadmap-2026-07.md` — read it
   joins with a real Mineflayer bot → state → chat → inventory → move → quit.
 - **Phase 4 / L3 Fabric client agent is live**: `agents/fabric/` (Java + Loom) — the
   title-screen "Automated Testing…" opt-in + flag gating, loopback+token control plane,
-  semantic **screen introspection + click/key by name**. Driver tools `agent_screen`/
-  `agent_click`/`agent_key`; `agent_connect` handles both handshake layouts. Pure logic
-  JUnit + JaCoCo ≥90; a **real headless client gametest** (XVFB, on PRs into main) boots
-  a rendering client and drives it over loopback (title screen → click by name →
-  wrong-token refused), timeout-capped.
+  semantic **screen introspection + click/key by name**, and (0.8.0) an **in-process
+  framebuffer screenshot** (`agent_screenshot` → base64 PNG off the GPU). Driver tools
+  `agent_screen`/`agent_click`/`agent_key`/`agent_screenshot`; `agent_connect` handles both
+  handshake layouts. Pure logic JUnit + JaCoCo ≥90 (now honest — measured uncached); a
+  **real headless client gametest** (XVFB, on PRs into main) boots a rendering client and
+  drives it over loopback (title screen → click by name → real PNG screenshot → wrong-token
+  refused), timeout-capped. **Still deferred to 0.9.0** (the rest of the Phase-4 exit):
+  in-world movement/look/position, text entry, container-slot driving. CodeQL now truly
+  analyzes the Fabric Java agent (was scanning only Paper).
 - **Phase 3 / L3 Paper agent live** since 0.4.0: control-protocol spec + Kotlin Paper
   agent (state/exec/events), disabled-by-default, real e2e smoke.
 - **Phase 2 / L1 live** since 0.3.0: gradle driver, job model, Paper provision/boot/

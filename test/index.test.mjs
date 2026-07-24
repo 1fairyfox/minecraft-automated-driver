@@ -177,7 +177,7 @@ function fakeAgentConn(agent = 'paper') {
   return {
     conn: {
       welcome: agent === 'fabric'
-        ? { agent: 'fabric', capabilities: ['screen', 'click', 'key'], events: [] }
+        ? { agent: 'fabric', capabilities: ['screen', 'click', 'key', 'screenshot'], events: [] }
         : { agent: 'paper', capabilities: ['state', 'exec'], events: ['player_join'] },
       request: async (op, params) => {
         if (op === 'state') return { players: [{ name: 'Alice' }], worlds: [], version: 'MockPaper' };
@@ -185,6 +185,13 @@ function fakeAgentConn(agent = 'paper') {
         if (op === 'screen') return { tree: '{"screen":"TitleScreen","widgets":[]}' };
         if (op === 'click') return { clicked: params.name === 'Options' };
         if (op === 'key') return { applied: true, key: params.key, down: params.down };
+        // A 1×1 PNG, base64 — enough for the driver tool to plumb through and the caller to decode.
+        if (op === 'screenshot') {
+          return {
+            png_base64: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M8AAAMBAQDJ/pLvAAAAAElFTkSuQmCC',
+            width: 1, height: 1, bytes: 67,
+          };
+        }
         throw new Error(`unknown op ${op}`);
       },
       events: () => [{ name: 'player_join', data: { name: 'Bob' }, at: 'now' }],
@@ -238,7 +245,7 @@ test('a Fabric client agent drives screen/click/key by name over the same tools'
   );
   assert.equal(opts.kind, 'fabric');
   assert.equal(c.agent, 'fabric');
-  assert.deepEqual(c.capabilities, ['screen', 'click', 'key']);
+  assert.deepEqual(c.capabilities, ['screen', 'click', 'key', 'screenshot']);
 
   const screen = JSON.parse((await client.callTool({ name: 'agent_screen', arguments: { connectionId: c.connectionId } })).content[0].text);
   assert.match(screen.tree, /TitleScreen/);
@@ -251,6 +258,13 @@ test('a Fabric client agent drives screen/click/key by name over the same tools'
   const key = JSON.parse((await client.callTool({ name: 'agent_key', arguments: { connectionId: c.connectionId, key: 'key.forward' } })).content[0].text);
   assert.equal(key.applied, true);
   assert.equal(key.down, true);
+
+  const shot = JSON.parse((await client.callTool({ name: 'agent_screenshot', arguments: { connectionId: c.connectionId } })).content[0].text);
+  assert.equal(shot.width, 1);
+  assert.equal(shot.height, 1);
+  // The driver plumbs the base64 through untouched; decoding it must yield a real PNG (magic bytes).
+  const png = Buffer.from(shot.png_base64, 'base64');
+  assert.deepEqual([...png.subarray(0, 4)], [0x89, 0x50, 0x4e, 0x47]);
   await close();
 });
 
@@ -263,7 +277,7 @@ test('agent_connect surfaces a missing handshake, and ops reject unknown connect
   assert.match(missing.content[0].text, /is the agent enabled/);
 
   for (const name of ['agent_state', 'agent_exec', 'agent_events', 'agent_disconnect',
-    'agent_screen', 'agent_click', 'agent_key']) {
+    'agent_screen', 'agent_click', 'agent_key', 'agent_screenshot']) {
     const args = { connectionId: 'a99' };
     if (name === 'agent_exec') args.command = 'x';
     if (name === 'agent_click') args.name = 'x';

@@ -1,9 +1,16 @@
 package io.fairyfox.minecraft.automateddriver.fabric;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Base64;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gl.Framebuffer;
 import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.Element;
 import net.minecraft.client.gui.screen.Screen;
@@ -11,6 +18,7 @@ import net.minecraft.client.gui.widget.ClickableWidget;
 import net.minecraft.client.gui.widget.PressableWidget;
 import net.minecraft.client.input.MouseInput;
 import net.minecraft.client.option.KeyBinding;
+import net.minecraft.client.util.ScreenshotRecorder;
 
 /**
  * The client-coupled v1 capabilities (docs/control-protocol.md). Everything here touches
@@ -78,6 +86,47 @@ public final class ClientOps {
         }
         binding.setPressed(false);
         return true;
+    }
+
+    /**
+     * In-process framebuffer screenshot — grabs the client's rendered frame straight off the
+     * GPU framebuffer (clean, exact, unaffected by window occlusion, unlike the L0 OS path)
+     * and completes {@code future} with the PNG bytes (base64) plus dimensions.
+     *
+     * <p>The 1.21 render system reads the framebuffer back <em>asynchronously</em>, so
+     * {@link ScreenshotRecorder#takeScreenshot} hands the {@link net.minecraft.client.texture.NativeImage}
+     * to a callback rather than returning it — this method must therefore be started on the
+     * render thread but must NOT block there waiting for the result (that would wedge the very
+     * thread the callback needs). {@link ClientControlServer} kicks it off on the render thread
+     * and awaits {@code future} on the control thread. {@code NativeImage} exposes no in-memory
+     * PNG encoder (only {@code writeTo(Path)}), so we encode via a short-lived temp file.
+     */
+    public static void captureScreenshot(CompletableFuture<Map<String, Object>> future) {
+        MinecraftClient client = MinecraftClient.getInstance();
+        Framebuffer framebuffer = client.getFramebuffer();
+        if (framebuffer == null) {
+            future.completeExceptionally(new IllegalStateException("no framebuffer to capture"));
+            return;
+        }
+        ScreenshotRecorder.takeScreenshot(framebuffer, image -> {
+            try (image) {
+                Path tmp = Files.createTempFile("mad-screenshot", ".png");
+                try {
+                    image.writeTo(tmp);
+                    byte[] png = Files.readAllBytes(tmp);
+                    Map<String, Object> out = new LinkedHashMap<>();
+                    out.put("png_base64", Base64.getEncoder().encodeToString(png));
+                    out.put("width", image.getWidth());
+                    out.put("height", image.getHeight());
+                    out.put("bytes", png.length);
+                    future.complete(out);
+                } finally {
+                    Files.deleteIfExists(tmp);
+                }
+            } catch (Throwable t) {
+                future.completeExceptionally(t);
+            }
+        });
     }
 
     // ── widget extraction (client-coupled) ───────────────────────────────────

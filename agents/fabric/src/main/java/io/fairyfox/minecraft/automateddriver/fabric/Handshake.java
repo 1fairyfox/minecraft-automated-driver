@@ -24,10 +24,13 @@ public final class Handshake {
             String json = "{\"v\":1,\"port\":" + port + ",\"token\":" + WidgetIntrospector.quote(token)
                 + ",\"pid\":" + pid + ",\"agent\":\"fabric\"}\n";
             Files.writeString(file, json);
-            try {
+            // Restrict to the owner on POSIX filesystems. Guard by capability rather than
+            // catching UnsupportedOperationException so control flow is deterministic and the
+            // gate can measure it honestly (the exception-driven form left the branch forever
+            // uncovered on whichever OS the tests ran — a gap the build cache was hiding). On
+            // Windows the user config dir is already owner-scoped by ACLs.
+            if (file.getFileSystem().supportedFileAttributeViews().contains("posix")) {
                 Files.setPosixFilePermissions(file, PosixFilePermissions.fromString("rw-------"));
-            } catch (UnsupportedOperationException ignored) {
-                // Windows: ACLs already scope the user config dir to the owner.
             }
             return file;
         } catch (IOException e) {

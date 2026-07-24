@@ -567,6 +567,25 @@ export async function createServer({
   );
 
   server.registerTool(
+    'agent_screenshot',
+    {
+      title: 'Screenshot the client (in-process)',
+      description:
+        'Grab the client\'s rendered frame straight off its GPU framebuffer — clean and ' +
+        'exact, unaffected by window occlusion, unlike the OS-level os_screenshot. Returns ' +
+        'a base64 PNG plus width/height. Fabric agents.',
+      inputSchema: { connectionId: z.string() },
+    },
+    async ({ connectionId }) => {
+      try {
+        return text(await withAgent(connectionId).request('screenshot'));
+      } catch (err) {
+        return failure(err);
+      }
+    },
+  );
+
+  server.registerTool(
     'agent_events',
     {
       title: 'Drain buffered agent events',

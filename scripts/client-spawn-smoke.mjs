@@ -62,16 +62,24 @@ try {
   if (!click.clicked) throw new Error(`click-by-name 'Options' failed: ${JSON.stringify(click)}`);
   say('   introspected + clicked "Options" by name.');
 
-  say('4) wrong token refused (security check)…');
+  say('4) in-process framebuffer screenshot…');
+  const shot = await conn.request('screenshot');
+  const png = Buffer.from(shot.png_base64 ?? '', 'base64');
+  if (!(png.length > 0 && png[0] === 0x89 && png[1] === 0x50 && png[2] === 0x4e && png[3] === 0x47)) {
+    throw new Error(`screenshot did not return a real PNG: ${png.length} bytes`);
+  }
+  say(`   grabbed a real ${shot.width}x${shot.height} PNG off the framebuffer (${png.length} bytes).`);
+
+  say('5) wrong token refused (security check)…');
   let refused = false;
   try { await connectAgent({ port: hs.port, token: '0'.repeat(64) }); } catch { refused = true; }
   if (!refused) throw new Error('SECURITY: a wrong token was NOT refused');
 
   conn.close(); conn = null;
-  say('5) DRIVER kills the client…');
+  say('6) DRIVER kills the client…');
   clients.kill(clientId); clientId = null;
 
-  say('client-spawn-smoke: PASS — driver spawned → connected → drove (by name) → refused bad token → killed, all real.');
+  say('client-spawn-smoke: PASS — driver spawned → connected → drove (by name) → screenshotted → refused bad token → killed, all real.');
 } catch (err) {
   failed = true;
   console.error(`client-spawn-smoke: FAIL — ${err.message}`);
