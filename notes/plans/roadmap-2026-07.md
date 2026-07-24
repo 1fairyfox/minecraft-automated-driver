@@ -122,7 +122,7 @@ serves MCP over stdio; `node scripts/check-links.mjs` green; committed on `dev`.
 - Exit: Claude can drive a client from title screen into a server, walk somewhere, open a
   chest, and screenshot it — all by name, zero pixel coordinates.
 
-### Phase 5 — Client lifecycle automation
+### Phase 5 — Client lifecycle automation — L2 lane DONE (0.6.0); instanced spawn/attach deferred
 - Instanced spawns: Loom `runClient` / production-run tasks from the driver, agent enabled
   by flag, auto direct-connect; full spawn→drive→kill loop.
 - Attach handshake: discover an enabled agent's handshake file, connect, take control.

@@ -73,15 +73,67 @@ test('tools/list exposes exactly the Phase-1 surface', async () => {
   await close();
 });
 
-test('driver_status reports phase 4 with L0, L1, and both agents available', async () => {
+test('driver_status reports phase 5 with L0, L1, L2 bots, and both agents available', async () => {
   const { client, close } = await connected();
   const result = await client.callTool({ name: 'driver_status', arguments: {} });
   const status = JSON.parse(result.content[0].text);
-  assert.equal(status.phase, 4);
+  assert.equal(status.phase, 5);
   assert.match(status.layers.l0_os, /^available/);
   assert.match(status.layers.l1_build_test, /^available/);
+  assert.match(status.layers.l2_protocol_bots, /^available/);
   assert.match(status.layers.l3_agents, /Fabric client agent/);
   assert.equal(status.transport, 'stdio-only');
+  await close();
+});
+
+// ── protocol: L2 bot tools (fake registry; bot logic unit-tested in bot.test.mjs) ─
+
+function fakeBotRegistry() {
+  const calls = [];
+  return {
+    calls,
+    join: async (a) => { calls.push(['join', a]); return { botId: 'b1', username: a.username ?? 'DriverBot' }; },
+    status: (id) => ({ id, state: 'spawned', position: { x: 1, y: 64, z: 2 } }),
+    chat: (id, m) => ({ sent: m }),
+    messages: (id) => ({ id, lines: [{ text: 'hi', at: 'now' }] }),
+    moveTo: async (id, a) => ({ arrived: true, position: { x: a.x, y: a.y, z: a.z } }),
+    inventory: (id) => ({ id, items: [{ name: 'dirt', count: 1, slot: 0 }] }),
+    list: () => [{ id: 'b1', username: 'DriverBot', state: 'spawned' }],
+    quit: (id) => { if (id === 'b9') throw new Error(`no bot ${id}`); return { quit: id }; },
+  };
+}
+
+test('bot lifecycle: join → status/chat/messages/move/inventory → list → quit', async () => {
+  const reg = fakeBotRegistry();
+  const { client, close } = await connected({ l1: { botRegistry: reg } });
+  const joined = JSON.parse((await client.callTool({ name: 'bot_join', arguments: { username: 'Smoke', port: 25599 } })).content[0].text);
+  assert.equal(joined.botId, 'b1');
+  assert.equal(reg.calls[0][1].port, 25599);
+
+  const status = JSON.parse((await client.callTool({ name: 'bot_status', arguments: { botId: 'b1' } })).content[0].text);
+  assert.deepEqual(status.position, { x: 1, y: 64, z: 2 });
+  assert.deepEqual(
+    JSON.parse((await client.callTool({ name: 'bot_chat', arguments: { botId: 'b1', message: '/hi' } })).content[0].text),
+    { sent: '/hi' },
+  );
+  assert.equal(JSON.parse((await client.callTool({ name: 'bot_messages', arguments: { botId: 'b1' } })).content[0].text).lines[0].text, 'hi');
+  const moved = JSON.parse((await client.callTool({ name: 'bot_move', arguments: { botId: 'b1', x: 3, y: 64, z: 4 } })).content[0].text);
+  assert.equal(moved.arrived, true);
+  assert.equal(JSON.parse((await client.callTool({ name: 'bot_inventory', arguments: { botId: 'b1' } })).content[0].text).items[0].name, 'dirt');
+  assert.equal(JSON.parse((await client.callTool({ name: 'bots_list', arguments: {} })).content[0].text)[0].id, 'b1');
+  assert.deepEqual(JSON.parse((await client.callTool({ name: 'bot_quit', arguments: { botId: 'b1' } })).content[0].text), { quit: 'b1' });
+  await close();
+});
+
+test('bot tools surface errors (unknown bot, join failure)', async () => {
+  const { client, close } = await connected({
+    l1: { botRegistry: { ...fakeBotRegistry(), join: async () => { throw new Error('bot join timed out'); } } },
+  });
+  const failed = await client.callTool({ name: 'bot_join', arguments: {} });
+  assert.equal(failed.isError, true);
+  assert.match(failed.content[0].text, /timed out/);
+  const unknown = await client.callTool({ name: 'bot_quit', arguments: { botId: 'b9' } });
+  assert.equal(unknown.isError, true);
   await close();
 });
 

@@ -70,6 +70,12 @@ possible"
 | 20 | (repetition) | Execute Phase 2 (L1 build/test) to exit criteria and release 0.3.0: job model, gradle driver, Paper provision/boot/console/stop tools, tests at every layer, real local + CI smokes. | done |
 | 21 | "automatically download and setup things where possible" | Elevated to a design principle (**auto-provision by default**, `context/principles.md` #8): Paper jars auto-download by version; Java auto-provisions (Temurin/Adoptium) when the host lacks 21+, proven in CI with `--force-java-download`; future phases apply the same rule (Loom caches, client assets). | done |
 
+## Escalation 8 — mandate repeated (2026-07-24) — Phase 5
+
+| # | Clause | Interpretation | Status |
+|---|--------|----------------|--------|
+| 25 | (repetition) | Execute Phase 5's L2 Mineflayer lane: `src/bot.mjs` + `bot_*` tools, unit-tested against a fake bot with the c8 gate held, and a REAL Mineflayer smoke (join a booted offline Paper, state/chat/inventory/move/quit) local + CI; release 0.6.0. Instanced client_spawn + attach deferred (needs the heavy Loom production-client infra; disclosed). | done |
+
 ## Escalation 7 — mandate repeated (2026-07-24) — Phase 4
 
 | # | Clause | Interpretation | Status |
