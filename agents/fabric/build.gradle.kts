@@ -66,14 +66,17 @@ tasks.withType<JavaCompile>().configureEach {
     options.encoding = "UTF-8"
 }
 
+// Captured OUTSIDE the task closure — inside `tasks.processResources { }` a bare
+// property(...) resolves against the TASK, not the project (Kotlin DSL gotcha that
+// produced "unknown property 'minecraft_version' for task ':processResources'").
+val modProps = mapOf(
+    "version" to project.version,
+    "minecraft_version" to project.property("minecraft_version"),
+    "loader_version" to project.property("loader_version"),
+)
 tasks.processResources {
-    val props = mapOf(
-        "version" to project.version,
-        "minecraft_version" to property("minecraft_version"),
-        "loader_version" to property("loader_version"),
-    )
-    inputs.properties(props)
-    filesMatching("fabric.mod.json") { expand(props) }
+    inputs.properties(modProps)
+    filesMatching("fabric.mod.json") { expand(modProps) }
 }
 
 // The CI-facing headless client gametest (Loom production run task + XVFB).
