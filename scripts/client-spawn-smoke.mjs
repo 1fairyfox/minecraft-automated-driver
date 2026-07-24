@@ -30,9 +30,21 @@ try {
   conn = await connectAgent({ port: hs.port, token: hs.token });
   say(`   connected — agent=${conn.welcome.agent} caps=${conn.welcome.capabilities.join(',')}`);
 
-  say('3) drive it: introspect the screen + click a button by name…');
-  const screen = await conn.request('screen');
-  if (!screen.tree || !screen.tree.includes('Screen')) throw new Error(`unexpected screen: ${JSON.stringify(screen)}`);
+  say('3) drive it: wait for the title screen, introspect, click a button by name…');
+  // The agent writes its handshake during init — a moment BEFORE the client finishes the
+  // "Loading Minecraft" splash (class_424) and swaps in the title screen. And a production
+  // client runs on intermediary mappings, so we can't key on a yarn class name like
+  // "TitleScreen" (it shows up as class_XXX). Instead poll the semantic widget tree until
+  // the title screen's "Options" button is actually present by label — that's exactly what
+  // "the title screen is ready to drive" means, obfuscation-independent.
+  const titleDeadline = Date.now() + 120_000;
+  let screen = await conn.request('screen');
+  while (!(screen.tree && screen.tree.includes('"label":"Options"'))) {
+    if (Date.now() > titleDeadline) throw new Error(`title screen never became ready: ${JSON.stringify(screen)}`);
+    await new Promise((r) => setTimeout(r, 1000));
+    screen = await conn.request('screen');
+  }
+  say('   title screen is up (Options present).');
   const click = await conn.request('click', { name: 'Options' });
   if (!click.clicked) throw new Error(`click-by-name 'Options' failed: ${JSON.stringify(click)}`);
   say('   introspected + clicked "Options" by name.');
