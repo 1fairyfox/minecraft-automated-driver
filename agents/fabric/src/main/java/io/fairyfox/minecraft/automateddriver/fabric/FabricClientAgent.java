@@ -25,7 +25,10 @@ import org.slf4j.LoggerFactory;
  * in a handshake file deleted on shutdown. No telemetry, no outbound connections.
  */
 public class FabricClientAgent implements ClientModInitializer {
-    static final String AGENT_DIR = "minecraft-automated-driver-agent";
+    // public: the client gametest (a different package) reads it to locate the handshake.
+    // Package-private only ever compiled via Gradle's build cache — an honest cross-package
+    // reference needs it public.
+    public static final String AGENT_DIR = "minecraft-automated-driver-agent";
     private static final Logger LOG = LoggerFactory.getLogger("mad-fabric-agent");
 
     private final EnableGate gate = EnableGate.fromSystemProperties();

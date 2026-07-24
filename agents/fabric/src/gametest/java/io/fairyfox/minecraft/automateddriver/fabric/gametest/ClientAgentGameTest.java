@@ -39,7 +39,7 @@ public class ClientAgentGameTest implements FabricClientGameTest {
         try (Socket socket = new Socket("127.0.0.1", port);
              BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8));
              BufferedWriter out = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8))) {
-            socket.setSoTimeout(15_000);
+            socket.setSoTimeout(30_000); // generous: the screenshot's GPU→CPU readback can lag
 
             send(out, "{\"type\":\"hello\",\"v\":1,\"token\":\"" + token + "\"}");
             String welcome = in.readLine();
@@ -57,6 +57,18 @@ public class ClientAgentGameTest implements FabricClientGameTest {
             String click = in.readLine();
             require(click != null && click.contains("\"ok\":true") && click.contains("\"clicked\":true"),
                 "click-by-name 'Options' failed: " + click);
+
+            // In-process framebuffer screenshot: grab the real rendered frame and prove it is a
+            // genuine PNG (magic bytes), not an empty/echoed payload. This is the "screenshot it"
+            // half of the Phase-4 exit, done off the GPU framebuffer — no OS window capture.
+            send(out, "{\"type\":\"req\",\"id\":3,\"op\":\"screenshot\"}");
+            String shot = in.readLine();
+            require(shot != null && shot.contains("\"ok\":true") && shot.contains("\"png_base64\":\""),
+                "screenshot op did not return a png: " + summarise(shot));
+            byte[] png = decodePng(shot);
+            require(png.length > 0
+                    && (png[0] & 0xFF) == 0x89 && png[1] == 'P' && png[2] == 'N' && png[3] == 'G',
+                "screenshot payload is not a real PNG (bad magic), " + png.length + " bytes");
 
             // A wrong token on a fresh connection must be refused (security check).
             requireWrongTokenRefused(port);
@@ -128,6 +140,20 @@ public class ClientAgentGameTest implements FabricClientGameTest {
         int i = json.indexOf(marker) + marker.length();
         int j = json.indexOf('"', i);
         return json.substring(i, j);
+    }
+
+    /** Pull the base64 png out of a screenshot response and decode it to raw bytes. */
+    private static byte[] decodePng(String json) {
+        String b64 = strField(json, "png_base64");
+        return java.util.Base64.getDecoder().decode(b64);
+    }
+
+    /** A screenshot response is huge (base64 image); trim it for readable assertion messages. */
+    private static String summarise(String line) {
+        if (line == null) {
+            return "null";
+        }
+        return line.length() <= 200 ? line : line.substring(0, 200) + "…(" + line.length() + " chars)";
     }
 
     private static void sleep(long ms) {
