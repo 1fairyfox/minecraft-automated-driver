@@ -125,6 +125,34 @@ jobs:
           path: agents/fabric/build/run/clientGameTest/screenshots
           if-no-files-found: ignore
 
+  # REAL proof of the Phase-5 "instance" mode: the DRIVER spawns a real Fabric client
+  # (agent enabled, no launcher/account) via the Loom production client, connects over the
+  # loopback control plane, drives it (introspect + click by name), refuses a bad token, and
+  # kills it. Heavy (boots a rendering client under XVFB) — PRs into main + dispatch, timeout.
+  client-spawn-smoke:
+    name: Client spawn smoke (driver → real client)
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
+    timeout-minutes: 30
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92 # v6.2.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Install XVFB (headless virtual framebuffer for the spawned client)
+        run: sudo apt-get update && sudo apt-get install -y xvfb
+      - run: node scripts/client-spawn-smoke.mjs
+
   # The Paper agent is its own Gradle build (agents/paper) — Kotlin, MockBukkit tests,
   # Kover ≥90 gate in `check`. JDK 21 is provisioned by the Gradle toolchain.
   agent-build:

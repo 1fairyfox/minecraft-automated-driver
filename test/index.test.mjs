@@ -125,6 +125,39 @@ test('bot lifecycle: join → status/chat/messages/move/inventory → list → q
   await close();
 });
 
+test('client_spawn / clients_list / client_kill plumb through the client manager', async () => {
+  const calls = [];
+  const mgr = {
+    spawn: async (a) => { calls.push(['spawn', a]); return { clientId: 'c1', jobId: 'j1', connectDir: `${a.agentDir}/run/prodClient` }; },
+    list: () => [{ id: 'c1', jobId: 'j1', state: 'ready', connectDir: '/x' }],
+    kill: (id) => { if (id === 'c9') throw new Error(`no client ${id}`); return { killed: id }; },
+  };
+  const { client, close } = await connected({ l1: { clientManager: mgr } });
+
+  const spawned = JSON.parse((await client.callTool({ name: 'client_spawn', arguments: {} })).content[0].text);
+  assert.equal(spawned.clientId, 'c1');
+  assert.match(spawned.connectDir, /run[\\/]prodClient$/); // defaults to this repo's agents/fabric
+  assert.match(calls[0][1].agentDir, /agents[\\/]fabric$/);
+
+  const listed = JSON.parse((await client.callTool({ name: 'clients_list', arguments: {} })).content[0].text);
+  assert.equal(listed[0].id, 'c1');
+
+  assert.deepEqual(JSON.parse((await client.callTool({ name: 'client_kill', arguments: { clientId: 'c1' } })).content[0].text), { killed: 'c1' });
+  const bad = await client.callTool({ name: 'client_kill', arguments: { clientId: 'c9' } });
+  assert.equal(bad.isError, true);
+  await close();
+});
+
+test('client_spawn surfaces a boot failure', async () => {
+  const { client, close } = await connected({
+    l1: { clientManager: { spawn: async () => { throw new Error('client c1 exited before its agent came up'); }, list: () => [], kill: () => ({}) } },
+  });
+  const res = await client.callTool({ name: 'client_spawn', arguments: { agentDir: '/a' } });
+  assert.equal(res.isError, true);
+  assert.match(res.content[0].text, /exited before its agent/);
+  await close();
+});
+
 test('bot tools surface errors (unknown bot, join failure)', async () => {
   const { client, close } = await connected({
     l1: { botRegistry: { ...fakeBotRegistry(), join: async () => { throw new Error('bot join timed out'); } } },

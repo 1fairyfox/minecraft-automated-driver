@@ -90,6 +90,19 @@ tasks.register("runProductionClientGameTest", net.fabricmc.loom.task.prod.Client
     useXVFB = true
 }
 
+// A REAL production client that boots with the agent enabled and STAYS UP until killed
+// (no gametest flag). This is what the DRIVER launches for `client_spawn` (spawn → connect
+// over loopback → drive → kill), no launcher/account. The agent writes its handshake into
+// this run dir's config/, so the driver knows exactly where to read it:
+//   agents/fabric/run/prodClient/config/minecraft-automated-driver-agent/handshake.json
+tasks.register("runProductionClient", net.fabricmc.loom.task.prod.ClientProductionRunTask::class) {
+    mods.from(tasks.named("remapJar")) // our agent, remapped to intermediary
+    mods.from(configurations.named("productionRuntimeMods")) // the full fabric-api at runtime
+    jvmArgs.add("-Dfairyfox.driver.enable=true")
+    runDir = file("run/prodClient")
+    useXVFB = true
+}
+
 tasks.test {
     useJUnitPlatform()
     finalizedBy(tasks.jacocoTestReport)

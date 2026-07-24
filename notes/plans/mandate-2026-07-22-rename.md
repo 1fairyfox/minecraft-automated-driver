@@ -70,11 +70,22 @@ possible"
 | 20 | (repetition) | Execute Phase 2 (L1 build/test) to exit criteria and release 0.3.0: job model, gradle driver, Paper provision/boot/console/stop tools, tests at every layer, real local + CI smokes. | done |
 | 21 | "automatically download and setup things where possible" | Elevated to a design principle (**auto-provision by default**, `context/principles.md` #8): Paper jars auto-download by version; Java auto-provisions (Temurin/Adoptium) when the host lacks 21+, proven in CI with `--force-java-download`; future phases apply the same rule (Loom caches, client assets). | done |
 
+## Escalation 9 — mandate repeated (2026-07-24) — "Dont take shortcuts" → Phase 5 instance mode
+
+Owner's words, quoted verbatim: *"proceed normally with everything that is required
+and mandated by me in as many phases as needed, ensure this reaches the completion i
+asked for in full in as many phases needed. Dont take shortcuts 'the driver-orchestrated
+instanced `client_spawn`' sounds like that."*
+
+| # | Clause | Interpretation | Status |
+|---|--------|----------------|--------|
+| 26 | "Dont take shortcuts ['…instanced `client_spawn`'] sounds like that" | The instanced spawn deferred in row 25 is un-deferred and built for real — no stub, no mock: a Loom `runProductionClient` task that boots a real Fabric client (agent enabled, no launcher/account) and STAYS UP until killed; `src/client.mjs` (`client_spawn`/`clients_list`/`client_kill`) that runs it as a job, polls for the agent's real loopback handshake, fails fast if the client dies first, and kills the process tree on `client_kill`; unit tests (run + fs faked) + protocol tests with the c8 ≥90 gate held; and a REAL CI smoke `client-spawn-smoke` (XVFB) — driver spawns a real client → reads its handshake → connects over loopback → introspects the title screen → clicks "Options" by name → refuses a wrong token → kills it, timeout-capped. Released as 0.7.0 via the MINOR git-flow. | done |
+
 ## Escalation 8 — mandate repeated (2026-07-24) — Phase 5
 
 | # | Clause | Interpretation | Status |
 |---|--------|----------------|--------|
-| 25 | (repetition) | Execute Phase 5's L2 Mineflayer lane: `src/bot.mjs` + `bot_*` tools, unit-tested against a fake bot with the c8 gate held, and a REAL Mineflayer smoke (join a booted offline Paper, state/chat/inventory/move/quit) local + CI; release 0.6.0. Instanced client_spawn + attach deferred (needs the heavy Loom production-client infra; disclosed). | done |
+| 25 | (repetition) | Execute Phase 5's L2 Mineflayer lane: `src/bot.mjs` + `bot_*` tools, unit-tested against a fake bot with the c8 gate held, and a REAL Mineflayer smoke (join a booted offline Paper, state/chat/inventory/move/quit) local + CI; release 0.6.0. Instanced client_spawn + attach deferred to row 26 (needs the heavy Loom production-client infra; disclosed — now delivered). | done |
 
 ## Escalation 7 — mandate repeated (2026-07-24) — Phase 4
 
