@@ -122,13 +122,16 @@ serves MCP over stdio; `node scripts/check-links.mjs` green; committed on `dev`.
 - Exit: Claude can drive a client from title screen into a server, walk somewhere, open a
   chest, and screenshot it — all by name, zero pixel coordinates.
 
-### Phase 5 — Client lifecycle automation — L2 lane DONE (0.6.0); instanced spawn/attach deferred
-- Instanced spawns: Loom `runClient` / production-run tasks from the driver, agent enabled
-  by flag, auto direct-connect; full spawn→drive→kill loop.
-- Attach handshake: discover an enabled agent's handshake file, connect, take control.
-- Mineflayer lane (L2) as first-class tools: `bot_join/move/chat/inventory` (port the
-  sibling's `ingame-smoke.mjs` know-how).
-- Exit: `client_spawn` → connected, driven, screenshotted, killed — one Claude conversation.
+### Phase 5 — Client lifecycle automation — L2 lane DONE (0.6.0); instanced spawn DONE (0.7.0)
+- Instanced spawns: **DONE (0.7.0)** — Loom `runProductionClient` task driven from the
+  driver (`src/client.mjs`: `client_spawn`/`clients_list`/`client_kill`), agent enabled by
+  flag, full spawn→drive-by-name→kill loop; real CI smoke `client-spawn-smoke` (XVFB) proves
+  the driver boots a real client, drives it through first-run onboarding to the title screen,
+  clicks by name, refuses a wrong token, and kills it. Attach handshake already handled by
+  `agent_connect kind:"fabric"` (the title-screen opt-in path from Phase 4).
+- Mineflayer lane (L2) as first-class tools: **DONE (0.6.0)** — `bot_join/move/chat/inventory`
+  (ported the sibling's `ingame-smoke.mjs` know-how).
+- Exit: `client_spawn` → connected, driven, killed — one Claude conversation. **MET (0.7.0).**
 
 ### Phase 6 — Deep state access (the reflection gateway)
 - Read side: query arbitrary game state by path (registries, entity fields, client
