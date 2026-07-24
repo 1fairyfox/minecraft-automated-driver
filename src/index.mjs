@@ -525,4 +525,8 @@ export async function createServer({
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   const server = await createServer();
   await server.connect(new StdioServerTransport());
+  // Exit when the client goes away (stdin closes) — the natural "parent disconnected"
+  // signal for a stdio MCP server. Without this the process can linger after the
+  // client closes (host-dependent), which also hung the e2e test's runner on Linux.
+  process.stdin.on('close', () => process.exit(0));
 }
