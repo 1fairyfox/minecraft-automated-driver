@@ -98,14 +98,15 @@ serves MCP over stdio; `node scripts/check-links.mjs` green; committed on `dev`.
 - MCP tools: `paper_state`, `paper_exec`, `paper_events`, `paper_world_*`.
 - Exit: live Paper server answers state queries and streams events into Claude's context.
 
-### Phase 4 — Fabric client agent (L3 client side) — DONE (0.5.0, foundation)
-> Delivered in 0.5.0: gated enable (flag + title-screen opt-in), the loopback+token
-> control plane, semantic screen introspection + click-by-name + keybinding, proven by a
-> real headless client gametest. **Deferred to a Phase 4.x / Phase 5 follow-up** (honest
-> S9 note): in-server player movement (walk), container-screen driving (open a chest by
-> name), an in-process framebuffer screenshot op, and text entry / direct-connect-by-name
-> navigation. The exit sentence below is the full vision; the crown-jewel *foundation* —
-> "drive the title screen by name in a real client" — is what shipped.
+### Phase 4 — Fabric client agent (L3 client side) — DONE IN FULL (0.5.0 → 0.9.0)
+> Foundation in 0.5.0 (gated enable, loopback+token plane, screen introspection +
+> click-by-name + keybinding). The deferred remainder was then closed rather than left as a
+> gap: **0.8.0** added the in-process framebuffer screenshot + honest CodeQL/coverage of the
+> Fabric agent; **0.9.0** added in-world driving — `position`/`look`/`move`/`type`/`slots`/
+> `close` ops (and edge-triggered `key`), so the exit below is now met in full and proven by
+> a two-phase real client gametest (title screen + a created singleplayer world). Goal-level
+> autonomy (navigate/chop/hunt/craft/build) is a *separate* layer — the L2 Mineflayer lane,
+> `notes/plans/goal-level-autonomy-2026-07.md` — not part of Phase 4.
 - Gated enable: launch flag (instanced) **and** the title-screen button + confirmation
   (attach), per the gating design above.
 - **Semantic UI driving**: introspect the current screen into a named widget tree

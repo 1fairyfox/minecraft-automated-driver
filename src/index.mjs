@@ -509,81 +509,100 @@ export async function createServer({
     },
   );
 
-  server.registerTool(
-    'agent_screen',
+  // The client-agent tools are all the same shape: take a connectionId (+ maybe a few params),
+  // forward ONE control-plane op, return its result or a tool error. Defined as a table so each
+  // is a single row rather than a repeated try/withAgent/request/catch block — the repetition a
+  // duplication check rightly flags. `params` maps the tool input to the op's params.
+  const agentTools = [
     {
-      title: 'Introspect the client screen',
-      description:
-        'Ask a connected client agent for the current screen as a named widget tree ' +
-        '(the "drive by name, never pixels" surface). Fabric agents.',
-      inputSchema: { connectionId: z.string() },
+      name: 'agent_screen', op: 'screen', title: 'Introspect the client screen',
+      description: 'Ask a connected client agent for the current screen as a named widget tree '
+        + '(the "drive by name, never pixels" surface). Fabric agents.',
     },
-    async ({ connectionId }) => {
-      try {
-        return text(await withAgent(connectionId).request('screen'));
-      } catch (err) {
-        return failure(err);
-      }
-    },
-  );
-
-  server.registerTool(
-    'agent_click',
     {
-      title: 'Click a widget by name',
-      description:
-        'Click a widget on the client\'s current screen BY NAME (exact or unique ' +
-        'substring; ambiguous names are refused, never guessed). Fabric agents.',
-      inputSchema: { connectionId: z.string(), name: z.string().min(1) },
+      name: 'agent_click', op: 'click', title: 'Click a widget by name',
+      description: 'Click a widget on the client\'s current screen BY NAME (exact or unique '
+        + 'substring; ambiguous names are refused, never guessed). Fabric agents.',
+      inputSchema: { name: z.string().min(1) },
+      params: ({ name }) => ({ name }),
     },
-    async ({ connectionId, name }) => {
-      try {
-        return text(await withAgent(connectionId).request('click', { name }));
-      } catch (err) {
-        return failure(err);
-      }
-    },
-  );
-
-  server.registerTool(
-    'agent_key',
     {
-      title: 'Press/release a keybinding',
-      description:
-        'Set a keybinding pressed or released by its id (e.g. "key.jump"). Fabric agents.',
+      name: 'agent_key', op: 'key', title: 'Press/release a keybinding',
+      description: 'Set a keybinding pressed or released by its id (e.g. "key.inventory"); a press '
+        + 'also edge-fires so inventory/chat open by intent, not just held keys. Fabric agents.',
       inputSchema: {
-        connectionId: z.string(),
         key: z.string().min(1).describe('Keybinding translation id, e.g. key.forward'),
         down: z.boolean().optional().describe('true=press (default), false=release'),
       },
+      params: ({ key, down = true }) => ({ key, down }),
     },
-    async ({ connectionId, key, down = true }) => {
-      try {
-        return text(await withAgent(connectionId).request('key', { key, down }));
-      } catch (err) {
-        return failure(err);
-      }
-    },
-  );
-
-  server.registerTool(
-    'agent_screenshot',
     {
-      title: 'Screenshot the client (in-process)',
-      description:
-        'Grab the client\'s rendered frame straight off its GPU framebuffer — clean and ' +
-        'exact, unaffected by window occlusion, unlike the OS-level os_screenshot. Returns ' +
-        'a base64 PNG plus width/height. Fabric agents.',
-      inputSchema: { connectionId: z.string() },
+      name: 'agent_screenshot', op: 'screenshot', title: 'Screenshot the client (in-process)',
+      description: 'Grab the client\'s rendered frame straight off its GPU framebuffer — clean and '
+        + 'exact, unaffected by window occlusion, unlike the OS-level os_screenshot. Returns a '
+        + 'base64 PNG plus width/height. Fabric agents.',
     },
-    async ({ connectionId }) => {
-      try {
-        return text(await withAgent(connectionId).request('screenshot'));
-      } catch (err) {
-        return failure(err);
-      }
+    {
+      name: 'agent_position', op: 'position', title: 'Read the player position',
+      description: 'Report the client player\'s position and camera: {inWorld,x,y,z,yaw,pitch}. '
+        + '`inWorld:false` when at a menu/not in a world. Fabric agents.',
     },
-  );
+    {
+      name: 'agent_move', op: 'move', title: 'Walk by holding a movement key',
+      description: 'Walk the client player by holding a movement direction for a duration, across '
+        + 'real game ticks — returns the from/to position and the horizontal distance travelled. '
+        + 'Requires being in a world. Fabric agents.',
+      inputSchema: {
+        direction: z.enum(['forward', 'back', 'left', 'right', 'jump', 'sneak']),
+        ms: z.number().int().positive().max(5000).optional().describe('How long to hold (default 400ms, capped 5s)'),
+      },
+      params: ({ direction, ms }) => ({ direction, ms }),
+    },
+    {
+      name: 'agent_look', op: 'look', title: 'Point the camera',
+      description: 'Set the client player\'s yaw and/or pitch (degrees) — aim by value, never a '
+        + 'mouse delta. Requires being in a world. Fabric agents.',
+      inputSchema: { yaw: z.number().optional(), pitch: z.number().optional() },
+      params: ({ yaw, pitch }) => ({ yaw, pitch }),
+    },
+    {
+      name: 'agent_type', op: 'type', title: 'Type into a text field',
+      description: 'Type text into a field on the current screen — the focused field, else the '
+        + 'sole field, else one whose label contains `name`. Fabric agents.',
+      inputSchema: {
+        text: z.string(),
+        name: z.string().optional().describe('Optional label to disambiguate among multiple fields'),
+      },
+      params: ({ text: value, name }) => ({ name, text: value }),
+    },
+    {
+      name: 'agent_slots', op: 'slots', title: 'Read a container\'s slots',
+      description: 'List the slots of the open container/handled screen by index (item name + '
+        + 'count), or {handled:false} if the current screen is not a container. Fabric agents.',
+    },
+    {
+      name: 'agent_close_screen', op: 'close', title: 'Close the current screen',
+      description: 'Dismiss the open screen (the Escape equivalent) — drive menus shut by intent. Fabric agents.',
+    },
+  ];
+  for (const tool of agentTools) {
+    server.registerTool(
+      tool.name,
+      {
+        title: tool.title,
+        description: tool.description,
+        inputSchema: { connectionId: z.string(), ...(tool.inputSchema ?? {}) },
+      },
+      async (input) => {
+        try {
+          const params = tool.params ? tool.params(input) : undefined;
+          return text(await withAgent(input.connectionId).request(tool.op, params));
+        } catch (err) {
+          return failure(err);
+        }
+      },
+    );
+  }
 
   server.registerTool(
     'agent_events',

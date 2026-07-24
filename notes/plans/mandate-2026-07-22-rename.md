@@ -86,7 +86,31 @@ screenshot, all by name") is genuinely met. Plan: `notes/plans/phase4-gap-closur
 |---|--------|----------------|--------|
 | 27 | "dont leave gaps … keeps things fixed and developed" (found: CodeQL only traced-compiled agents/paper, so the Fabric Java agent was UNSCANNED behind a green check) | Extend the `analyze-kotlin` CodeQL job to also traced-compile `agents/fabric` main, so CodeQL genuinely covers the Fabric agent's token/handshake/loopback code — not a hollow pass. Shipped in 0.8.0. Two further cache-hidden gaps found+fixed in passing: `AGENT_DIR` cross-package visibility, and `Handshake` really at 86% (POSIX branch) → deterministic capability check. | done |
 | 28 | "dont leave gaps … ensure this reaches the completion i asked for in full" (Phase 4 exit: screenshot) | Real in-process framebuffer screenshot op (framebuffer→PNG→base64) + driver `agent_screenshot`, proven three ways (client gametest asserts real PNG magic bytes; client-spawn-smoke driver→real-client; MCP protocol test). Shipped in 0.8.0. | done |
-| 29 | "dont leave gaps … in as many phases as needed" (Phase 4 exit: walk somewhere, open a container, type) | In-world driving: agent `move`/`look`/`position`/`type` + container slot introspection/click; driver tools; a singleplayer-world gametest that walks + opens a container. Shipping in 0.9.0. Meets the Phase-4 exit in full. | in-progress |
+| 29 | "dont leave gaps … in as many phases as needed" (Phase 4 exit: walk somewhere, open a container, type) | In-world driving shipped in 0.9.0: agent ops `position`/`look`/`move`/`type`/`slots`/`close` (+ the `key` op now edge-triggers so inventory/chat open by intent), driver tools `agent_position`/`agent_move`/`agent_look`/`agent_type`/`agent_slots`/`agent_close_screen`, all proven by a real singleplayer-world gametest (create/join a world → position in-world → walk and confirm the position moved → aim → type into chat by intent → open the inventory by intent and read its slots → screenshot). Meets the Phase-4 exit ("title→server, walk, open a container, screenshot — all by name"). | done |
+
+## Escalation 11 — new directives (2026-07-24) — goal-level autonomy
+
+Owner, mid-execution, verbatim:
+1. *"include A path navigation with moving, jumping, allow giving requests to 'chop down a
+   tree' or 'hunt down zombies' and have it be able to use weapons and tools and A-path
+   navigation"*
+2. *"Or give it a recipe to do and have it make the recipe, or ask it to build/make and/or
+   place something, would be nice not to have to spell everything out command by command
+   for tiny steps"*
+
+Reading: raise the ceiling from primitive commands to **goal-level intents** — the driver
+decomposes "chop a tree" / "hunt zombies" / "craft X" / "build/place Y" into steps itself.
+Home: the **L2 Mineflayer lane** (`src/bot.mjs`), which already carries the mature ecosystem
+for this — `mineflayer-pathfinder` (A\* nav with walk/jump/parkour), `mineflayer-pvp`
+(combat), `mineflayer-collectblock` (chop/gather), `mineflayer-tool` (auto-equip best
+tool), plus `bot.craft`/`bot.placeBlock` for recipes and building. Reinventing A\*+combat in
+the Java client agent would be strictly worse. Plan: `notes/plans/goal-level-autonomy-2026-07.md`.
+
+| # | Clause | Interpretation | Status |
+|---|--------|----------------|--------|
+| 30 | "A path navigation with moving, jumping" | A\* pathfinding on the L2 lane: `bot_goto` (navigate to coords/blocks with walk+jump+parkour via mineflayer-pathfinder), proven by a real smoke that pathfinds across a booted server. | in-progress |
+| 31 | "'chop down a tree' or 'hunt down zombies' … use weapons and tools" | Goal tasks on L2: `bot_collect`/`bot_chop` (mineflayer-collectblock, auto-equips the right tool via mineflayer-tool), `bot_hunt`/`bot_attack` (mineflayer-pvp; equips a weapon), so a single intent runs many steps. | in-progress |
+| 32 | "give it a recipe … make the recipe … build/make and/or place something … not … command by command" | Goal tasks on L2: `bot_craft` (recipe by item name/count, uses a crafting table when needed), `bot_place`/`bot_build` (place a block / a small structure from a spec). The through-line: intents in, multi-step execution out. | in-progress |
 
 ## Escalation 9 — mandate repeated (2026-07-24) — "Dont take shortcuts" → Phase 5 instance mode
 
