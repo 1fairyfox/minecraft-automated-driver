@@ -70,6 +70,12 @@ possible"
 | 20 | (repetition) | Execute Phase 2 (L1 build/test) to exit criteria and release 0.3.0: job model, gradle driver, Paper provision/boot/console/stop tools, tests at every layer, real local + CI smokes. | done |
 | 21 | "automatically download and setup things where possible" | Elevated to a design principle (**auto-provision by default**, `context/principles.md` #8): Paper jars auto-download by version; Java auto-provisions (Temurin/Adoptium) when the host lacks 21+, proven in CI with `--force-java-download`; future phases apply the same rule (Loom caches, client assets). | done |
 
+## Escalation 7 — mandate repeated (2026-07-24) — Phase 4
+
+| # | Clause | Interpretation | Status |
+|---|--------|----------------|--------|
+| 24 | (repetition) | Execute Phase 4: the Fabric client agent — gated enable (flag + title-screen opt-in), control-plane reuse, semantic screen introspection + click/key by name; JaCoCo-gated pure-logic unit tests + a real headless client gametest (XVFB) as the quality gate; driver client tools; release 0.5.0. Owner interjections handled: CI cost (caching + gating the heavy gametest to release PRs), Java-not-Kotlin for the Fabric mod (recorded in CLAUDE.md + decisions), and the "why only CI" question (the 45s-capped sandbox can't run a multi-minute Loom build; CI is the uncapped Linux venue — proven by launching a build there). | done |
+
 ## Escalation 6 — mandate repeated (2026-07-23, evening)
 
 | # | Clause | Interpretation | Status |

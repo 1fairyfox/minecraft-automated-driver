@@ -4,7 +4,10 @@
 > **Minecraft Automated Driver**; the repo slug, the npm package, and the built agent
 > jars are all **`minecraft-automated-driver`** (renamed from the papermc- form,
 > owner call 2026-07-22 — this project isn't Paper-specific); JVM agent packages live
-> under `io.fairyfox.minecraft.automateddriver` (Kotlin). The MCP server itself is plain
+> under `io.fairyfox.minecraft.automateddriver`. The **Paper agent is Kotlin**
+> (`agents/paper`, Kover-gated); the **Fabric client agent is Java** (`agents/fabric`,
+> JaCoCo-gated — owner call 2026-07-24: matches the sibling's own Fabric mod and avoids
+> the fabric-language-kotlin runtime dependency). The MCP server itself is plain
 > JavaScript (Node) at the repo root — **not TypeScript** (owner call, 2026-07-22).
 
 An **MCP server** that puts the whole Minecraft development loop behind one tool surface

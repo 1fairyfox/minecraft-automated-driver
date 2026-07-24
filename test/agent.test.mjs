@@ -68,6 +68,18 @@ test('readHandshake reads and validates the discovery file', async () => {
   } finally { await rm(dir, { recursive: true, force: true }); }
 });
 
+test('readHandshake finds the Fabric layout under config/', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'agent-hs-'));
+  try {
+    const cfgDir = join(dir, 'config', 'minecraft-automated-driver-agent');
+    await mkdir(cfgDir, { recursive: true });
+    await writeFile(join(cfgDir, 'handshake.json'), JSON.stringify({ v: 1, port: 9, token: 'ft', agent: 'fabric' }));
+    const hs = await readHandshake(dir, { kind: 'fabric' });
+    assert.equal(hs.port, 9);
+    assert.equal(hs.agent, 'fabric');
+  } finally { await rm(dir, { recursive: true, force: true }); }
+});
+
 test('readHandshake fails clearly when absent or malformed', async () => {
   const dir = await mkdtemp(join(tmpdir(), 'agent-hs-'));
   try {

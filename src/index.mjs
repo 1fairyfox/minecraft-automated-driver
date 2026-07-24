@@ -78,12 +78,12 @@ export async function createServer({
     async () => text({
       name: 'minecraft-automated-driver',
       version,
-      phase: 3,
+      phase: 4,
       layers: {
         l0_os: 'available — windows list/screenshot, instance open/close (Windows host)',
         l1_build_test: 'available — gradle jobs, paper provision/boot/console, auto-provisioned java',
         l2_protocol_bots: 'planned (Phase 5)',
-        l3_agents: 'available (server) — Paper agent control plane: connect/state/exec/events',
+        l3_agents: 'available — Paper agent (state/exec/events) + Fabric client agent (screen/click/key by name)',
       },
       transport: 'stdio-only',
     }),
@@ -429,13 +429,17 @@ export async function createServer({
         'enabled (launch flag / config / in-game opt-in). Returns a connectionId and ' +
         'the agent\'s advertised capabilities.',
       inputSchema: {
-        dir: z.string().min(1).describe('The server directory whose agent to connect to'),
-        agentName: z.string().optional().describe('Plugin/mod folder name (default: the Paper agent)'),
+        dir: z.string().min(1).describe('The server/client directory whose agent to connect to'),
+        kind: z.enum(['paper', 'fabric']).optional().describe('Agent layout (default: paper)'),
+        agentName: z.string().optional().describe('Plugin/mod folder name (default: the shared agent id)'),
       },
     },
-    async ({ dir, agentName }) => {
+    async ({ dir, kind, agentName }) => {
       try {
-        const hs = await agentHandshake(dir, agentName ? { agentName } : {});
+        const opts = {};
+        if (kind) opts.kind = kind;
+        if (agentName) opts.agentName = agentName;
+        const hs = await agentHandshake(dir, opts);
         const conn = await agentConnect({ port: hs.port, token: hs.token });
         const id = `a${++agentCounter}`;
         agents.set(id, conn);
@@ -472,12 +476,69 @@ export async function createServer({
     'agent_exec',
     {
       title: 'Run a command via the agent',
-      description: 'Dispatch a console command through a connected agent (main-thread, gated).',
+      description: 'Dispatch a console command through a connected agent (main-thread, gated). Paper agents.',
       inputSchema: { connectionId: z.string(), command: z.string().min(1) },
     },
     async ({ connectionId, command }) => {
       try {
         return text(await withAgent(connectionId).request('exec', { command }));
+      } catch (err) {
+        return failure(err);
+      }
+    },
+  );
+
+  server.registerTool(
+    'agent_screen',
+    {
+      title: 'Introspect the client screen',
+      description:
+        'Ask a connected client agent for the current screen as a named widget tree ' +
+        '(the "drive by name, never pixels" surface). Fabric agents.',
+      inputSchema: { connectionId: z.string() },
+    },
+    async ({ connectionId }) => {
+      try {
+        return text(await withAgent(connectionId).request('screen'));
+      } catch (err) {
+        return failure(err);
+      }
+    },
+  );
+
+  server.registerTool(
+    'agent_click',
+    {
+      title: 'Click a widget by name',
+      description:
+        'Click a widget on the client\'s current screen BY NAME (exact or unique ' +
+        'substring; ambiguous names are refused, never guessed). Fabric agents.',
+      inputSchema: { connectionId: z.string(), name: z.string().min(1) },
+    },
+    async ({ connectionId, name }) => {
+      try {
+        return text(await withAgent(connectionId).request('click', { name }));
+      } catch (err) {
+        return failure(err);
+      }
+    },
+  );
+
+  server.registerTool(
+    'agent_key',
+    {
+      title: 'Press/release a keybinding',
+      description:
+        'Set a keybinding pressed or released by its id (e.g. "key.jump"). Fabric agents.',
+      inputSchema: {
+        connectionId: z.string(),
+        key: z.string().min(1).describe('Keybinding translation id, e.g. key.forward'),
+        down: z.boolean().optional().describe('true=press (default), false=release'),
+      },
+    },
+    async ({ connectionId, key, down = true }) => {
+      try {
+        return text(await withAgent(connectionId).request('key', { key, down }));
       } catch (err) {
         return failure(err);
       }

@@ -4,9 +4,15 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import net from 'node:net';
 
-/** Read + validate an agent handshake.json from a server/client data dir. */
-export async function readHandshake(dir, { agentName = 'minecraft-automated-driver-agent' } = {}) {
-  const path = join(dir, 'plugins', agentName, 'handshake.json');
+/**
+ * Read + validate an agent handshake.json. The two agents publish it in their own
+ * natural data dir (docs/control-protocol.md §Discovery):
+ *   paper  → <serverDir>/plugins/<agentName>/handshake.json
+ *   fabric → <clientDir>/config/<agentName>/handshake.json
+ */
+export async function readHandshake(dir, { agentName = 'minecraft-automated-driver-agent', kind = 'paper' } = {}) {
+  const sub = kind === 'fabric' ? 'config' : 'plugins';
+  const path = join(dir, sub, agentName, 'handshake.json');
   let raw;
   try {
     raw = await readFile(path, 'utf8');

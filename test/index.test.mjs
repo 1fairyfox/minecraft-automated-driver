@@ -73,28 +73,33 @@ test('tools/list exposes exactly the Phase-1 surface', async () => {
   await close();
 });
 
-test('driver_status reports phase 3 with L0, L1, and the server agent available', async () => {
+test('driver_status reports phase 4 with L0, L1, and both agents available', async () => {
   const { client, close } = await connected();
   const result = await client.callTool({ name: 'driver_status', arguments: {} });
   const status = JSON.parse(result.content[0].text);
-  assert.equal(status.phase, 3);
+  assert.equal(status.phase, 4);
   assert.match(status.layers.l0_os, /^available/);
   assert.match(status.layers.l1_build_test, /^available/);
-  assert.match(status.layers.l3_agents, /^available/);
+  assert.match(status.layers.l3_agents, /Fabric client agent/);
   assert.equal(status.transport, 'stdio-only');
   await close();
 });
 
 // ── protocol: L3 agent tools (fake handshake + fake connection) ──────────────
 
-function fakeAgentConn() {
+function fakeAgentConn(agent = 'paper') {
   const closed = { value: false };
   return {
     conn: {
-      welcome: { agent: 'paper', capabilities: ['state', 'exec'], events: ['player_join'] },
+      welcome: agent === 'fabric'
+        ? { agent: 'fabric', capabilities: ['screen', 'click', 'key'], events: [] }
+        : { agent: 'paper', capabilities: ['state', 'exec'], events: ['player_join'] },
       request: async (op, params) => {
         if (op === 'state') return { players: [{ name: 'Alice' }], worlds: [], version: 'MockPaper' };
         if (op === 'exec') return { dispatched: true, detail: null, echo: params.command };
+        if (op === 'screen') return { tree: '{"screen":"TitleScreen","widgets":[]}' };
+        if (op === 'click') return { clicked: params.name === 'Options' };
+        if (op === 'key') return { applied: true, key: params.key, down: params.down };
         throw new Error(`unknown op ${op}`);
       },
       events: () => [{ name: 'player_join', data: { name: 'Bob' }, at: 'now' }],
@@ -134,6 +139,36 @@ test('agent lifecycle: connect → state → exec → events → disconnect', as
   await close();
 });
 
+test('a Fabric client agent drives screen/click/key by name over the same tools', async () => {
+  const { conn } = fakeAgentConn('fabric');
+  let opts = null;
+  const { client, close } = await connected({
+    l1: {
+      agentHandshake: async (dir, o) => { opts = o; return { v: 1, port: 6000, token: 'ftok' }; },
+      agentConnect: async () => conn,
+    },
+  });
+  const c = JSON.parse(
+    (await client.callTool({ name: 'agent_connect', arguments: { dir: 'C:/client', kind: 'fabric' } })).content[0].text,
+  );
+  assert.equal(opts.kind, 'fabric');
+  assert.equal(c.agent, 'fabric');
+  assert.deepEqual(c.capabilities, ['screen', 'click', 'key']);
+
+  const screen = JSON.parse((await client.callTool({ name: 'agent_screen', arguments: { connectionId: c.connectionId } })).content[0].text);
+  assert.match(screen.tree, /TitleScreen/);
+
+  const hit = JSON.parse((await client.callTool({ name: 'agent_click', arguments: { connectionId: c.connectionId, name: 'Options' } })).content[0].text);
+  assert.equal(hit.clicked, true);
+  const miss = JSON.parse((await client.callTool({ name: 'agent_click', arguments: { connectionId: c.connectionId, name: 'Nope' } })).content[0].text);
+  assert.equal(miss.clicked, false);
+
+  const key = JSON.parse((await client.callTool({ name: 'agent_key', arguments: { connectionId: c.connectionId, key: 'key.forward' } })).content[0].text);
+  assert.equal(key.applied, true);
+  assert.equal(key.down, true);
+  await close();
+});
+
 test('agent_connect surfaces a missing handshake, and ops reject unknown connections', async () => {
   const { client, close } = await connected({
     l1: { agentHandshake: async () => { throw new Error('no agent handshake — is the agent enabled?'); } },
@@ -142,8 +177,12 @@ test('agent_connect surfaces a missing handshake, and ops reject unknown connect
   assert.equal(missing.isError, true);
   assert.match(missing.content[0].text, /is the agent enabled/);
 
-  for (const name of ['agent_state', 'agent_exec', 'agent_events', 'agent_disconnect']) {
-    const args = name === 'agent_exec' ? { connectionId: 'a99', command: 'x' } : { connectionId: 'a99' };
+  for (const name of ['agent_state', 'agent_exec', 'agent_events', 'agent_disconnect',
+    'agent_screen', 'agent_click', 'agent_key']) {
+    const args = { connectionId: 'a99' };
+    if (name === 'agent_exec') args.command = 'x';
+    if (name === 'agent_click') args.name = 'x';
+    if (name === 'agent_key') args.key = 'key.jump';
     const res = await client.callTool({ name, arguments: args });
     assert.equal(res.isError, true, `${name} should reject unknown connection`);
   }

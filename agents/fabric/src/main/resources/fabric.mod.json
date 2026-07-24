@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "id": "minecraft-automated-driver-agent",
+  "version": "${version}",
+  "name": "Minecraft Automated Driver (Client Agent)",
+  "description": "In-game control-plane agent for Minecraft Automated Driver. DISABLED BY DEFAULT: it self-disables unless launched with -Dfairyfox.driver.enable=true, or enabled in-game via the title-screen 'Automated Testing…' button + confirmation (which lasts only until the game closes). When enabled it listens on 127.0.0.1 only, on an ephemeral port, authenticated with a per-session token (see docs/control-protocol.md and SECURITY.md). Client-side only; GitHub releases only.",
+  "authors": ["Fairy Fox"],
+  "contact": {
+    "homepage": "https://fairyfox.io/minecraft-automated-driver/",
+    "sources": "https://github.com/1fairyfox/minecraft-automated-driver"
+  },
+  "license": "Apache-2.0",
+  "environment": "client",
+  "entrypoints": {
+    "client": ["io.fairyfox.minecraft.automateddriver.fabric.FabricClientAgent"]
+  },
+  "depends": {
+    "fabricloader": ">=${loader_version}",
+    "minecraft": "~${minecraft_version}",
+    "java": ">=21",
+    "fabric-screen-api-v1": "*",
+    "fabric-lifecycle-events-v1": "*"
+  }
+}
