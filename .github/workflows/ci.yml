@@ -90,20 +90,17 @@ jobs:
         run: ./gradlew build --no-daemon --stacktrace
         working-directory: agents/fabric
 
-  # The REAL headless client gametest (Loom production run + XVFB). It boots a real client
-  # with the agent enabled and drives it over the loopback control plane (introspect the
-  # title screen, click a button by name) + asserts a wrong token is refused.
-  #
-  # STATUS (2026-07-24): NOT yet a required gate. The mod compiles cleanly against the real
-  # client (fabric-build, required) and all pure logic is JaCoCo-gated ≥90, but the headless
-  # client BOOT stalls under XVFB on the runner (a run hung >3h before finishing asset setup)
-  # — a known-finicky area the Fabric docs themselves flag. So this is MANUAL-DISPATCH ONLY
-  # with a hard timeout until the boot stall is fixed, then it gets promoted to a required
-  # check. Tracked in notes/status.md. Do not gate releases on it yet.
+  # The REAL headless client gametest (Loom production run + XVFB). Boots a real client with
+  # the agent enabled and drives it over the loopback control plane (introspect the title
+  # screen, click a button by name) + asserts a wrong token is refused. Runs on PRs into
+  # main + manual dispatch (heavy: asset download + a rendering client). `timeout-minutes`
+  # is a safety net: if the client ever crashes, xvfb-run can leave the Gradle task idle
+  # rather than propagating the exit (that's how a loader<0.17.3 crash once "hung" >3h) —
+  # the timeout turns any such crash into a fast, visible failure instead.
   fabric-client-gametest:
     name: Fabric client gametest (headless)
-    if: github.event_name == 'workflow_dispatch'
-    timeout-minutes: 30
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
+    timeout-minutes: 25
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
