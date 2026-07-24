@@ -49,7 +49,7 @@ dependencies {
     "gametestImplementation"(fabricApi.module("fabric-client-gametest-api-v1", "${property("fabric_version")}"))
 
     // Pure-logic unit tests (no Minecraft classes touched → plain JUnit, no loader-junit).
-    testImplementation("org.junit.jupiter:junit-jupiter:5.11.3")
+    testImplementation("org.junit.jupiter:junit-jupiter:6.1.2")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 
     // The headless client gametest needs the full Fabric API at runtime.
