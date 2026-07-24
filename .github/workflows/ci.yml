@@ -68,6 +68,60 @@ jobs:
         if: env.SONAR_TOKEN != ''
         uses: SonarSource/sonarqube-scan-action@22918119ff8e1ca75a623e15c8296b6ea4fbe28f # v8.2.1
 
+  # The Fabric client agent (agents/fabric) — Java + Loom. Fast job: compile + the pure-logic
+  # JUnit suite + the JaCoCo ≥90 gate on the introspection/gate/handshake classes. The first
+  # run downloads the deobfuscated Minecraft client (multi-GB); setup-gradle caches ~/.gradle
+  # (incl. Loom's cache) so every run after is warm. The heavy real-client gametest is a
+  # SEPARATE job below, gated to release PRs only.
+  fabric-build:
+    name: Fabric client agent (build + JaCoCo ≥90)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92 # v6.2.0
+      - name: Build the agent (compile + unit tests + JaCoCo verify)
+        run: ./gradlew build --no-daemon --stacktrace
+        working-directory: agents/fabric
+
+  # The REAL headless client gametest (Loom production run + XVFB). Heavy (asset downloads
+  # + a rendering client), so it runs ONLY on PRs into main and on manual dispatch — not on
+  # every dev push. It boots a real client with the agent enabled, and the gametest drives
+  # it over the loopback control plane (introspect the title screen, click a button by name)
+  # + asserts a wrong token is refused.
+  fabric-client-gametest:
+    name: Fabric client gametest (headless)
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92 # v6.2.0
+      - name: Install XVFB (headless virtual framebuffer for the client)
+        run: sudo apt-get update && sudo apt-get install -y xvfb
+      - name: Run the headless client gametest
+        run: ./gradlew runProductionClientGameTest --no-daemon --stacktrace
+        working-directory: agents/fabric
+      - name: Upload gametest screenshots
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: fabric-client-gametest-screenshots
+          path: agents/fabric/build/run/clientGameTest/screenshots
+          if-no-files-found: ignore
+
   # The Paper agent is its own Gradle build (agents/paper) — Kotlin, MockBukkit tests,
   # Kover ≥90 gate in `check`. JDK 21 is provisioned by the Gradle toolchain.
   agent-build:

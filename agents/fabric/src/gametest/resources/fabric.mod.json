@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "id": "minecraft-automated-driver-agent-test",
+  "version": "1.0.0",
+  "name": "Minecraft Automated Driver — Client Agent Gametest",
+  "environment": "client",
+  "entrypoints": {
+    "fabric-client-gametest": [
+      "io.fairyfox.minecraft.automateddriver.fabric.gametest.ClientAgentGameTest"
+    ]
+  },
+  "depends": {
+    "minecraft-automated-driver-agent": "*"
+  }
+}

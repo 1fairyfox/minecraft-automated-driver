@@ -33,6 +33,20 @@ updates:
         update-types: ["minor", "patch"]
     labels: ["dependencies"]
 
+  # Gradle — the Fabric client agent (Java + Loom). minecraft_version / yarn_mappings /
+  # fabric_version move together per Minecraft version (see agents/fabric/gradle.properties),
+  # so review those as a set rather than piecemeal.
+  - package-ecosystem: "gradle"
+    directory: "/agents/fabric"
+    schedule:
+      interval: "weekly"
+    target-branch: "dev"
+    open-pull-requests-limit: 10
+    groups:
+      minor-and-patch:
+        update-types: ["minor", "patch"]
+    labels: ["dependencies"]
+
   # GitHub Actions — keeps SHA-pinned Actions current so the OpenSSF Scorecard
   # Pinned-Dependencies check stays green without going stale.
   - package-ecosystem: "github-actions"

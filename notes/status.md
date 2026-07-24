@@ -1,6 +1,6 @@
 # Status — Minecraft Automated Driver
 
-**Updated:** 2026-07-23 · **Version:** 0.4.0 · **Phase:** 3 (L3 server agent) — complete, released (v0.4.0 on `main`)
+**Updated:** 2026-07-24 · **Version:** 0.5.0 · **Phase:** 4 (L3 Fabric client agent) — complete, released (v0.5.0 on `main`)
 
 ## What this is
 
@@ -13,14 +13,15 @@ behind one tool surface. **Founding plan: `plans/roadmap-2026-07.md` — read it
 - Repo scaffolded on the mesh standards, seeded from the sibling **despawned-items**
   node (whose local standard modifications are ahead of the hub — see the provenance
   note in `CLAUDE.md` and `fairyfox-reports/2026-07-22-onboarding-scaffold.md`).
-- **Phase 3 / L3 server agent is live**: `docs/control-protocol.md` (NDJSON over
-  loopback TCP, token-gated) + the Kotlin **Paper agent** (`agents/paper/`) —
-  disabled-by-default, self-disabling without the flag/config, 256-bit per-session
-  token, handshake-file discovery, main-thread-marshalled state/exec, join/quit
-  events. Driver tools: `agent_connect`/`agent_state`/`agent_exec`/`agent_events`/
-  `agent_disconnect`. **Full real smoke passed** (driver builds agent → boots Paper
-  enabled → connects loopback → live state → console command through agent → wrong
-  token refused → stop), local + CI.
+- **Phase 4 / L3 Fabric client agent is live**: `agents/fabric/` (Java + Loom) — the
+  title-screen "Automated Testing…" opt-in + flag gating, loopback+token control plane,
+  semantic **screen introspection + click/key by name**. Driver tools `agent_screen`/
+  `agent_click`/`agent_key`; `agent_connect` handles both handshake layouts. Pure logic
+  JUnit + JaCoCo ≥90; **real headless client gametest** (XVFB, gated to release PRs)
+  boots a rendering client and drives it over loopback (title screen → click by name →
+  wrong-token refused).
+- **Phase 3 / L3 Paper agent live** since 0.4.0: control-protocol spec + Kotlin Paper
+  agent (state/exec/events), disabled-by-default, real e2e smoke.
 - **Phase 2 / L1 live** since 0.3.0: gradle driver, job model, Paper provision/boot/
   console, auto-provisioned Java.
 - **Phase 1 / L0 live** since 0.2.0: window list/screenshot (PrintWindow + screen
@@ -46,12 +47,17 @@ behind one tool surface. **Founding plan: `plans/roadmap-2026-07.md` — read it
 
 ## Next
 
-1. **Phase 4** per the roadmap — the Fabric client agent (semantic UI driving by
-   name, player control, in-process screenshots, the title-screen opt-in for attach
-   mode). Same control-protocol spec, new loader.
+1. **Phase 5** per the roadmap — client lifecycle automation: Loom dev-client spawns
+   from the driver (`client_spawn`), the attach handshake flow end to end, and the
+   Mineflayer (L2) protocol-bot lane.
 2. Owner: finish hub registration flags (docs site is live) + the "Minecraft
    Plugins" group rename + sibling rename.
-3. Watch: single-port `server_provision` default (concurrent servers collide);
-   `os_screenshot` vs GL surfaces (verify a real MC window in Phase 5); the
-   reflection gateway (Phase 6) must land its read/write session grants — flagged in
-   `docs/control-protocol.md`.
+3. Watch / deferred honestly:
+   - Fabric client-agent **in-process framebuffer screenshot** op not yet added — the
+     gametest uses the framework's `takeScreenshot`; a driver-facing `agent_screenshot`
+     op is a Phase-5 follow-up.
+   - Fabric agent Java **not yet in CodeQL** (paper Kotlin + JS are) — heavy Loom compile;
+     add when the gametest infra is warm.
+   - Player move/look and teleport ops beyond keybindings — Phase 5/6.
+   - single-port `server_provision`; `os_screenshot` vs GL surfaces; the reflection
+     gateway's read/write grants (Phase 6, flagged in `docs/control-protocol.md`).

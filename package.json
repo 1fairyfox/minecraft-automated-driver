@@ -1,6 +1,6 @@
 {
   "name": "minecraft-automated-driver",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "private": true,
   "description": "MCP server that puts the Minecraft dev loop — build, test, launch, attach, screenshot, and semantic live control of clients and servers — behind one tool surface. Stdio only; loopback-only control plane; in-game agents disabled by default.",
   "license": "Apache-2.0",
