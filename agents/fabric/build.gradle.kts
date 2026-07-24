@@ -7,7 +7,9 @@
 // headlessly in CI (XVFB) — the layer a unit test structurally cannot reach.
 plugins {
     java
-    id("fabric-loom") version "1.11-SNAPSHOT"
+    // Loom 1.13.x is required by the current MC 1.21.11 / fabric-api artifacts
+    // (CI: "Mod was built with a newer version of Loom (1.13.3)"). Pin to the 1.13 line.
+    id("fabric-loom") version "1.13-SNAPSHOT"
     jacoco
 }
 
