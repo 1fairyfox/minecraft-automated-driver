@@ -158,6 +158,39 @@ test('client_spawn surfaces a boot failure', async () => {
   await close();
 });
 
+test('targets_list shows bots and agents as uniform executors, and drops them on quit/disconnect', async () => {
+  const reg = fakeBotRegistry();
+  const { conn } = fakeAgentConn('fabric');
+  const { client, close } = await connected({
+    l1: {
+      botRegistry: reg,
+      agentHandshake: async () => ({ v: 1, port: 6000, token: 'ftok' }),
+      agentConnect: async () => conn,
+    },
+  });
+
+  // Empty until something connects.
+  assert.deepEqual(JSON.parse((await client.callTool({ name: 'targets_list', arguments: {} })).content[0].text), []);
+
+  await client.callTool({ name: 'bot_join', arguments: { username: 'Nav' } });
+  const c = JSON.parse(
+    (await client.callTool({ name: 'agent_connect', arguments: { dir: 'C:/client', kind: 'fabric' } })).content[0].text,
+  );
+
+  const listed = JSON.parse((await client.callTool({ name: 'targets_list', arguments: {} })).content[0].text);
+  const byId = Object.fromEntries(listed.map((t) => [t.id, t]));
+  assert.equal(byId.b1.kind, 'bot');
+  assert.ok(byId.b1.capabilities.includes('move'));
+  assert.equal(byId[c.connectionId].kind, 'client');
+  assert.ok(byId[c.connectionId].capabilities.includes('move'));   // both can move — the universal seam
+  assert.ok(byId[c.connectionId].capabilities.includes('slots'));  // only the client agent has this
+
+  await client.callTool({ name: 'bot_quit', arguments: { botId: 'b1' } });
+  await client.callTool({ name: 'agent_disconnect', arguments: { connectionId: c.connectionId } });
+  assert.deepEqual(JSON.parse((await client.callTool({ name: 'targets_list', arguments: {} })).content[0].text), []);
+  await close();
+});
+
 test('bot tools surface errors (unknown bot, join failure)', async () => {
   const { client, close } = await connected({
     l1: { botRegistry: { ...fakeBotRegistry(), join: async () => { throw new Error('bot join timed out'); } } },

@@ -129,7 +129,7 @@ plan: `notes/plans/goal-level-autonomy-2026-07.md`.
 
 | # | Clause | Interpretation | Status |
 |---|--------|----------------|--------|
-| 33 | "high level goals or navigation … on the MCP side … universally handle any client or plugin or server … not … fragile or hacky" | Build the capability registry + executor interface + goal engine MCP-side (0.10.0), so goals plan over *advertised capabilities* and dispatch to any executor; a shared MCP-side A\* over a backend-provided world snapshot makes navigation universal (not Mineflayer-only). The capability contract is the anti-hack device. | in-progress |
+| 33 | "high level goals or navigation … on the MCP side … universally handle any client or plugin or server … not … fragile or hacky" | The MCP-side capability seam shipped in **0.10.0**: `src/executors.mjs` (executors advertise capabilities + a uniform `invoke`; a registry finds targets *by capability*), wired so every bot/agent registers as an executor + a `targets_list` view. This is the anti-hack foundation goals plan over. The goal engine + shared A\* build on it next (0.11.0). | done (seam) |
 | 34 | "handle server and client testing at the same time if needed … more efficient to tackle both" | First-class **scenario** orchestration (0.12.0): provision + coordinate a server + client + bots together with lifecycle + guaranteed teardown, instead of hand-wiring `server_start`/`client_spawn`/`bot_join` per call. | in-progress |
 
 ## Escalation 9 — mandate repeated (2026-07-24) — "Dont take shortcuts" → Phase 5 instance mode

@@ -25,6 +25,7 @@ import { deployPlugin, provisionServer, createServerManager } from './paper.mjs'
 import { ensureJava } from './java.mjs';
 import { readHandshake, connectAgent } from './agent.mjs';
 import { createBotRegistry } from './bot.mjs';
+import { createTargetRegistry, agentExecutor, botExecutor } from './executors.mjs';
 import { createClientManager } from './client.mjs';
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
@@ -82,6 +83,10 @@ export async function createServer({
   // Instanced client spawns (Loom production client). The default agent dir is this repo's
   // agents/fabric; overridable per call.
   const clients = l1.clientManager ?? createClientManager({ jobs });
+  // The backend-agnostic capability layer: every connected bot/agent is registered here as an
+  // executor, so goal-level orchestration (later phases) plans over advertised capabilities
+  // without knowing the target type. See notes/plans/goal-level-autonomy-2026-07.md.
+  const targets = l1.targets ?? createTargetRegistry();
   const defaultAgentDir = join(root, 'agents', 'fabric');
   const version = await readVersion(root);
 
@@ -464,6 +469,8 @@ export async function createServer({
         const conn = await agentConnect({ port: hs.port, token: hs.token });
         const id = `a${++agentCounter}`;
         agents.set(id, conn);
+        // Register as an executor. A fabric agent drives a client; a paper agent, a server.
+        targets.add(agentExecutor({ id, kind: conn.welcome.agent === 'fabric' ? 'client' : 'server', connection: conn }));
         return text({ connectionId: id, agent: conn.welcome.agent, capabilities: conn.welcome.capabilities, events: conn.welcome.events });
       } catch (err) {
         return failure(err);
@@ -631,6 +638,7 @@ export async function createServer({
       try {
         withAgent(connectionId).close();
         agents.delete(connectionId);
+        targets.remove(connectionId);
         return text({ disconnected: connectionId });
       } catch (err) {
         return failure(err);
@@ -656,7 +664,10 @@ export async function createServer({
     },
     async (args) => {
       try {
-        return text(await (await getBots()).join(args));
+        const registry = await getBots();
+        const joined = await registry.join(args);
+        targets.add(botExecutor({ id: joined.botId, registry }));
+        return text(joined);
       } catch (err) {
         return failure(err);
       }
@@ -685,7 +696,7 @@ export async function createServer({
   botTool('bot_inventory', 'Bot inventory', 'List the items in the bot\'s inventory.', {},
     (reg, id) => reg.inventory(id));
   botTool('bot_quit', 'Disconnect a bot', 'Disconnect and forget a bot.', {},
-    (reg, id) => reg.quit(id));
+    (reg, id) => { const r = reg.quit(id); targets.remove(id); return r; });
 
   server.registerTool(
     'bots_list',
@@ -693,6 +704,27 @@ export async function createServer({
     async () => {
       try {
         return text((await getBots()).list());
+      } catch (err) {
+        return failure(err);
+      }
+    },
+  );
+
+  // ── Orchestration: the backend-agnostic target registry ────────────────────
+
+  server.registerTool(
+    'targets_list',
+    {
+      title: 'List controllable targets',
+      description:
+        'Every connected target (Mineflayer bot, Fabric client agent, Paper server agent) as ' +
+        'a uniform executor: {id, kind, capabilities}. Goal-level orchestration plans over ' +
+        'these advertised capabilities rather than a specific backend.',
+      inputSchema: {},
+    },
+    async () => {
+      try {
+        return text(targets.list());
       } catch (err) {
         return failure(err);
       }
