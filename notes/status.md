@@ -1,6 +1,6 @@
 # Status — Minecraft Automated Driver
 
-**Updated:** 2026-07-24 · **Version:** 0.6.0 · **Phase:** 5 (L2 Mineflayer lane) — complete, released (v0.6.0 on `main`)
+**Updated:** 2026-07-24 · **Version:** 0.7.0 · **Phase:** 5 — complete incl. the instanced client spawn, released (v0.7.0 on `main`)
 
 ## What this is
 
@@ -13,6 +13,15 @@ behind one tool surface. **Founding plan: `plans/roadmap-2026-07.md` — read it
 - Repo scaffolded on the mesh standards, seeded from the sibling **despawned-items**
   node (whose local standard modifications are ahead of the hub — see the provenance
   note in `CLAUDE.md` and `fairyfox-reports/2026-07-22-onboarding-scaffold.md`).
+- **Phase 5 instanced client spawn is live** (v0.7.0): the driver boots a real Fabric
+  client with the agent enabled — no launcher, no account — via the Loom
+  `runProductionClient` task, and owns its lifecycle. `src/client.mjs` +
+  `client_spawn`/`clients_list`/`client_kill`: spawn runs the task as a job, waits for the
+  agent's real loopback handshake in the run dir (returns a `connectDir` for
+  `agent_connect kind:"fabric"`), fails fast if the client dies first; kill aborts the job
+  → kills the process tree. Unit-tested (run + fs faked) + protocol tests, c8 gate held;
+  **real CI smoke** `client-spawn-smoke` (XVFB): driver spawns → handshake → connect →
+  introspect title screen → click "Options" by name → wrong-token refused → kill.
 - **Phase 5 / L2 Mineflayer lane is live**: `src/bot.mjs` + `bot_join`/`bot_status`/
   `bot_chat`/`bot_messages`/`bot_move`/`bot_inventory`/`bots_list`/`bot_quit`. Unit-tested
   against a fake bot; **real smoke** (local + CI `bot-smoke`) boots offline Paper and

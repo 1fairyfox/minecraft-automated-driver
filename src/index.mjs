@@ -25,6 +25,7 @@ import { deployPlugin, provisionServer, createServerManager } from './paper.mjs'
 import { ensureJava } from './java.mjs';
 import { readHandshake, connectAgent } from './agent.mjs';
 import { createBotRegistry } from './bot.mjs';
+import { createClientManager } from './client.mjs';
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 
@@ -78,6 +79,10 @@ export async function createServer({
   });
   let bots = l1.botRegistry ?? null;
   const getBots = async () => (bots ??= await botsFactory());
+  // Instanced client spawns (Loom production client). The default agent dir is this repo's
+  // agents/fabric; overridable per call.
+  const clients = l1.clientManager ?? createClientManager({ jobs });
+  const defaultAgentDir = join(root, 'agents', 'fabric');
   const version = await readVersion(root);
 
   const server = new McpServer({ name: 'minecraft-automated-driver', version });
@@ -650,6 +655,53 @@ export async function createServer({
     async () => {
       try {
         return text((await getBots()).list());
+      } catch (err) {
+        return failure(err);
+      }
+    },
+  );
+
+  // ── Instanced client spawns (roadmap Phase 5, "instance" mode) ──────────────
+
+  server.registerTool(
+    'client_spawn',
+    {
+      title: 'Spawn a real Fabric client',
+      description:
+        'Boot a REAL Fabric client with the agent enabled — no launcher, no MS account — ' +
+        'via the agent\'s Loom production-client run. Resolves once the agent\'s loopback ' +
+        'handshake appears. Returns a connectDir to pass to agent_connect with kind:"fabric", ' +
+        'and the clientId/jobId. Heavy (boots a rendering client); headless under XVFB on Linux.',
+      inputSchema: {
+        agentDir: z.string().optional().describe('The Fabric agent build dir (default: this repo\'s agents/fabric)'),
+        waitReadyMs: z.number().int().positive().optional().describe('How long to wait for the client to come up'),
+      },
+    },
+    async ({ agentDir, waitReadyMs }) => {
+      try {
+        return text(await clients.spawn({ agentDir: agentDir ?? defaultAgentDir, ...(waitReadyMs ? { waitReadyMs } : {}) }));
+      } catch (err) {
+        return failure(err);
+      }
+    },
+  );
+
+  server.registerTool(
+    'clients_list',
+    { title: 'List spawned clients', description: 'Every client the driver spawned, with state + connectDir.', inputSchema: {} },
+    async () => text(clients.list()),
+  );
+
+  server.registerTool(
+    'client_kill',
+    {
+      title: 'Kill a spawned client',
+      description: 'Stop a spawned client (aborts its job, killing the client process tree).',
+      inputSchema: { clientId: z.string() },
+    },
+    async ({ clientId }) => {
+      try {
+        return text(clients.kill(clientId));
       } catch (err) {
         return failure(err);
       }
