@@ -12,7 +12,7 @@
   "main": "src/index.mjs",
   "scripts": {
     "start": "node src/index.mjs",
-    "test": "c8 --include src --reporter=text --reporter=lcov --check-coverage --lines 90 --statements 90 --functions 90 --branches 90 node --test \"test/*.test.mjs\"",
+    "test": "c8 --include src --reporter=text --reporter=lcov --check-coverage --lines 90 --statements 90 --functions 90 --branches 90 node --test --test-force-exit \"test/*.test.mjs\"",
     "check-links": "node scripts/check-links.mjs",
     "build-docs": "node scripts/build-docs.mjs"
   },
@@ -25,6 +25,7 @@
     "marked": "18.0.7"
   },
   "comment_coverage": "Owner mandate 2026-07-22: coverage >= 90% is a GATE, not a goal — the test script fails below it, across lines/statements/functions/branches, scoped to src/ (scripts/ are repo tooling, test/ is the suite itself). c8 propagates NODE_V8_COVERAGE to child processes, so the spawned-stdio e2e test counts toward coverage of the entry-point guard.",
+  "comment_force_exit": "--test-force-exit: the suite spawns real child processes (proc/os/e2e) and loopback sockets (agent) whose OS-level teardown can lag a beat past the last assertion; on Linux CI that occasionally kept `node --test` alive after all tests passed (Windows exited fine). Every test cleans up its own handles; this just guarantees the runner exits once results are in, so CI can never hang on a straggling handle.",
   "comment_sdk": "Pinned to the v1 line deliberately. SDK v2 (split @modelcontextprotocol/server / client packages) goes stable alongside the 2026-07-28 MCP spec; migrating is a planned, bounded refactor — see notes/plans/future.md. Do not mix v1 and v2.",
   "comment_overrides": "Force @hono/node-server >= 2.0.5 (transitive of the MCP SDK's optional HTTP transport, which we never use — stdio only) to clear GHSA-frvp-7c67-39w9 (Windows path traversal in serve-static). Kept clean per the no-parked-findings bar.",
   "overrides": {
