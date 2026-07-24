@@ -4,10 +4,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.Element;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.widget.ClickableWidget;
 import net.minecraft.client.gui.widget.PressableWidget;
+import net.minecraft.client.input.MouseInput;
 import net.minecraft.client.option.KeyBinding;
 
 /**
@@ -50,7 +52,11 @@ public final class ClientOps {
         if (!widget.active || !(widget instanceof PressableWidget pressable)) {
             return false;
         }
-        pressable.onPress();
+        // onPress takes an AbstractInput now; a left-click at the widget centre is a
+        // valid one (Click implements AbstractInput). Button 0 = left, no modifiers.
+        double cx = widget.getX() + widget.getWidth() / 2.0;
+        double cy = widget.getY() + widget.getHeight() / 2.0;
+        pressable.onPress(new Click(cx, cy, new MouseInput(0, 0)));
         return true;
     }
 
