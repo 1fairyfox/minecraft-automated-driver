@@ -9,7 +9,7 @@ plugins {
     java
     // Loom 1.13.x is required by the current MC 1.21.11 / fabric-api artifacts
     // (CI: "Mod was built with a newer version of Loom (1.13.3)"). Pin to the 1.13 line.
-    id("fabric-loom") version "1.13-SNAPSHOT"
+    id("fabric-loom") version "1.17.17"
     jacoco
 }
 
