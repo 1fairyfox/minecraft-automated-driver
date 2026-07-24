@@ -44,10 +44,15 @@ jobs:
         with:
           category: "/language:javascript"
 
-  # The Kotlin Paper agent (agents/paper) — traced Gradle compile (build-mode manual is
-  # the most precise). Kotlin is pinned to 2.4.0 to stay within CodeQL's supported range
-  # (see agents/paper/build.gradle.kts); bump only together with CodeQL.
-  analyze-kotlin:
+  # BOTH JVM agents in ONE java-kotlin analysis (build-mode manual = the most precise):
+  # the Kotlin Paper agent (agents/paper) AND the Java Fabric client agent (agents/fabric)
+  # are traced-compiled inside the same CodeQL trace, so both are actually scanned — a
+  # manual-mode job only sees what it compiles, so leaving the Fabric compile out would
+  # silently exclude its token/handshake/loopback code behind a green check. Kotlin is
+  # pinned to 2.4.0 to stay in CodeQL's supported range (see agents/paper/build.gradle.kts);
+  # bump only together with CodeQL. The Fabric compile pulls the Loom/Minecraft deps
+  # (heavy on a cold cache); setup-gradle caches ~/.gradle so subsequent runs are warm.
+  analyze-jvm-agents:
     name: Analyze (java-kotlin)
     runs-on: ubuntu-latest
     permissions:
@@ -70,9 +75,12 @@ jobs:
           languages: java-kotlin
           build-mode: manual
           queries: security-and-quality
-      - name: Traced compile
+      - name: Traced compile — Paper agent (Kotlin)
         run: ./gradlew compileKotlin --rerun-tasks --no-build-cache --no-daemon --stacktrace
         working-directory: agents/paper
+      - name: Traced compile — Fabric client agent (Java)
+        run: ./gradlew compileJava --rerun-tasks --no-build-cache --no-daemon --stacktrace
+        working-directory: agents/fabric
       - name: Perform CodeQL analysis
         uses: github/codeql-action/analyze@54f647b7e1bb85c95cddabcd46b0c578ec92bc1a # v4.36.3
         with:

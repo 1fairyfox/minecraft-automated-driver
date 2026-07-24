@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.PosixFilePermissions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -32,6 +33,16 @@ class HandshakeTest {
     @Test
     void deleteIsSafeWhenAbsent(@TempDir Path dir) {
         Handshake.delete(dir.resolve("never-created")); // must not throw
+    }
+
+    @Test
+    void restrictsToOwnerOnPosix(@TempDir Path dir) throws IOException {
+        Path file = Handshake.write(dir, 1, "t", 1L);
+        // On POSIX filesystems the handshake (which carries the session token) must be
+        // owner-only (rw-------). On non-POSIX (Windows) the call is skipped; ACLs cover it.
+        if (file.getFileSystem().supportedFileAttributeViews().contains("posix")) {
+            assertEquals("rw-------", PosixFilePermissions.toString(Files.getPosixFilePermissions(file)));
+        }
     }
 
     @Test

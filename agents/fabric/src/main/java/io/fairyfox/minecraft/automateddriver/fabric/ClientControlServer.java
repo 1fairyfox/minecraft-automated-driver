@@ -71,7 +71,7 @@ public final class ClientControlServer {
             welcome.put("type", "welcome");
             welcome.put("v", 1);
             welcome.put("agent", "fabric");
-            welcome.put("capabilities", List.of("screen", "click", "key"));
+            welcome.put("capabilities", List.of("screen", "click", "key", "screenshot"));
             welcome.put("events", List.of());
             writeLine(writer, welcome);
             String line;
@@ -117,8 +117,33 @@ public final class ClientControlServer {
                 boolean ok = down ? ClientOps.pressKey(keyId) : ClientOps.releaseKey(keyId);
                 return Map.of("applied", ok);
             });
+            case "screenshot" -> screenshot(id);
             default -> res(id, false, Map.of("error", "unknown op: " + op));
         };
+    }
+
+    /**
+     * The framebuffer screenshot: kicked off on the render thread, but its GPU→CPU readback
+     * completes asynchronously via a callback (see {@link ClientOps#captureScreenshot}) — so we
+     * start it there and await the callback-completed future on THIS (control) thread. Awaiting
+     * on the render thread would deadlock the very thread the callback needs. Bounded generously
+     * (15s) because the readback can lag a frame or two.
+     */
+    private Map<String, Object> screenshot(int id) {
+        try {
+            CompletableFuture<Map<String, Object>> future = new CompletableFuture<>();
+            MinecraftClient.getInstance().execute(() -> {
+                try {
+                    ClientOps.captureScreenshot(future);
+                } catch (Throwable t) {
+                    future.completeExceptionally(t);
+                }
+            });
+            return res(id, true, future.get(15, TimeUnit.SECONDS));
+        } catch (Exception e) {
+            Throwable cause = e.getCause() != null ? e.getCause() : e;
+            return res(id, false, Map.of("error", cause.getMessage() == null ? cause.toString() : cause.getMessage()));
+        }
     }
 
     /** Marshal an op to the client render thread and await it (bounded). */

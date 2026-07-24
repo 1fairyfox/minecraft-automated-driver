@@ -70,6 +70,24 @@ possible"
 | 20 | (repetition) | Execute Phase 2 (L1 build/test) to exit criteria and release 0.3.0: job model, gradle driver, Paper provision/boot/console/stop tools, tests at every layer, real local + CI smokes. | done |
 | 21 | "automatically download and setup things where possible" | Elevated to a design principle (**auto-provision by default**, `context/principles.md` #8): Paper jars auto-download by version; Java auto-provisions (Temurin/Adoptium) when the host lacks 21+, proven in CI with `--force-java-download`; future phases apply the same rule (Loom caches, client assets). | done |
 
+## Escalation 10 — mandate repeated (2026-07-24) — "dont leave gaps" → finish Phase 4's road
+
+Owner's words, quoted verbatim: *"dont leave gaps everywhere as you pave new road, keeps
+things fixed and developed and stuff, proceed normally with everything that is required and
+mandated by me in as many phases as needed, ensure this reaches the completion i asked for
+in full in as many phases needed."*
+
+Reading: before paving new road (Phase 6), go back and finish the road already laid. Phase 4
+shipped a foundation (0.5.0) and deferred the rest of its own exit behind an S9 note — that
+deferral is a gap. Close it fully so the exit ("title→server, walk, open a container,
+screenshot, all by name") is genuinely met. Plan: `notes/plans/phase4-gap-closure-2026-07.md`.
+
+| # | Clause | Interpretation | Status |
+|---|--------|----------------|--------|
+| 27 | "dont leave gaps … keeps things fixed and developed" (found: CodeQL only traced-compiled agents/paper, so the Fabric Java agent was UNSCANNED behind a green check) | Extend the `analyze-kotlin` CodeQL job to also traced-compile `agents/fabric` main, so CodeQL genuinely covers the Fabric agent's token/handshake/loopback code — not a hollow pass. Shipped in 0.8.0. Two further cache-hidden gaps found+fixed in passing: `AGENT_DIR` cross-package visibility, and `Handshake` really at 86% (POSIX branch) → deterministic capability check. | done |
+| 28 | "dont leave gaps … ensure this reaches the completion i asked for in full" (Phase 4 exit: screenshot) | Real in-process framebuffer screenshot op (framebuffer→PNG→base64) + driver `agent_screenshot`, proven three ways (client gametest asserts real PNG magic bytes; client-spawn-smoke driver→real-client; MCP protocol test). Shipped in 0.8.0. | done |
+| 29 | "dont leave gaps … in as many phases as needed" (Phase 4 exit: walk somewhere, open a container, type) | In-world driving: agent `move`/`look`/`position`/`type` + container slot introspection/click; driver tools; a singleplayer-world gametest that walks + opens a container. Shipping in 0.9.0. Meets the Phase-4 exit in full. | in-progress |
+
 ## Escalation 9 — mandate repeated (2026-07-24) — "Dont take shortcuts" → Phase 5 instance mode
 
 Owner's words, quoted verbatim: *"proceed normally with everything that is required

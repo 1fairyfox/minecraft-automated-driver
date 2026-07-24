@@ -62,10 +62,24 @@ data directory:
 | `state` | — | `{"tps":[…] or null,"players":[{name,uuid}],"worlds":[{name,entities,loadedChunks}],"version":"…"}` (fields degrade to null where a platform can't answer) |
 | `exec` | `{"command":"say hi"}` | `{"dispatched":true/false}` — dispatched as console, on the main thread |
 
-Additions (teleports, inventory, world edits, the reflection gateway with its
-read/write grants) arrive in later phases as new `op`s + capability strings; the
-envelope above does not change. **Reflection writes will require an explicit
-per-session grant op** — recorded here so no implementation forgets it.
+## v1 capabilities (Fabric client agent)
+
+Advertised as `capabilities:["screen","click","key","screenshot"]`. Every op is
+marshalled to the client render thread. UI is driven **by name, never by pixel** —
+the whole point of the client agent.
+
+| op | params | result |
+|----|--------|--------|
+| `screen` | — | `{"tree":"{\"screen\":\"…\",\"widgets\":[{label,type,index,x,y,width,height,active}]}"}` — the current screen as a named widget tree (screen/widget class names are the runtime/intermediary names on a production client) |
+| `click` | `{"name":"Options"}` | `{"clicked":true/false}` — resolves the widget by exact-or-unique-substring label and presses it; ambiguous names are refused, never guessed |
+| `key` | `{"key":"key.forward","down":true}` | `{"applied":true/false}` — sets a keybinding pressed/released by its translation id |
+| `screenshot` | — | `{"png_base64":"…","width":<int>,"height":<int>,"bytes":<int>}` — the rendered frame grabbed off the GPU framebuffer (async readback), PNG-encoded; unaffected by window occlusion, unlike the OS path |
+
+Additions (player movement/look/position, text entry, container slots, teleports,
+inventory, world edits, the reflection gateway with its read/write grants) arrive in
+later phases as new `op`s + capability strings; the envelope above does not change.
+**Reflection writes will require an explicit per-session grant op** — recorded here so
+no implementation forgets it.
 
 ## Threading rules (agent side)
 
