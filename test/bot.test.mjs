@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
-import { createBotRegistry } from '../src/bot.mjs';
+import { createBotRegistry, isLoopbackHost } from '../src/bot.mjs';
 
 /** A fake mineflayer bot: emits spawn on next tick, records chat/control, fakes movement. */
 function fakeBot(opts) {
@@ -46,6 +46,28 @@ test('join resolves on spawn and uses offline auth on a loopback default', async
   assert.equal(username, 'Smoke');
   assert.equal(created[0]._opts.auth, 'offline');
   assert.equal(created[0]._opts.host, '127.0.0.1');
+});
+
+test('join refuses a non-loopback host unless allowRemote is set', async () => {
+  const { registry, created } = reg();
+  await assert.rejects(() => registry.join({ host: 'play.example.com' }), /refusing to join non-loopback/);
+  assert.equal(created.length, 0); // a refused host never even creates a bot
+
+  // Explicit opt-in connects — the in-process-parser risk is the caller's to accept knowingly.
+  const p = registry.join({ host: 'play.example.com', username: 'Remote', allowRemote: true });
+  created[0].emit('spawn');
+  const { botId } = await p;
+  assert.equal(botId, 'b1');
+  assert.equal(created[0]._opts.host, 'play.example.com');
+});
+
+test('isLoopbackHost recognises loopback forms and rejects remotes', () => {
+  for (const h of ['127.0.0.1', 'localhost', 'LOCALHOST', ' ::1 ', '127.5.5.5', '::ffff:127.0.0.1']) {
+    assert.equal(isLoopbackHost(h), true, `${h} should be loopback`);
+  }
+  for (const h of ['play.example.com', '10.0.0.5', '192.168.1.4', '8.8.8.8', '0.0.0.0']) {
+    assert.equal(isLoopbackHost(h), false, `${h} should be remote`);
+  }
 });
 
 test('join rejects on kick, on error, and on timeout', async () => {

@@ -1,6 +1,6 @@
 # Status — Minecraft Automated Driver
 
-**Updated:** 2026-07-25 · **Version:** 0.15.0 · **Phase:** goal-level autonomy — capability seam (0.10.0) + navigation (0.11.0) + convenience verbs (0.12.0) + world_list/world_select (0.13.0) + slider/typed-option ops (0.14.0) + multi-target scenarios (0.15.0) shipped; next: gather/combat goals, then craft/build
+**Updated:** 2026-07-25 · **Version:** 0.16.0 · **Phase:** goal-level autonomy — capability seam (0.10.0) → multi-target scenarios (0.15.0) shipped; **security hardening for inbound/untrusted content (0.16.0)** shipped; next: gather/combat goals, then craft/build
 
 ## What this is
 
@@ -80,6 +80,12 @@ behind one tool surface. **Founding plan: `plans/roadmap-2026-07.md` — read it
   `scenario_run` boots a REAL Paper server + REAL Mineflayer bot together, coordinates them, tears
   both down — driven through the actual MCP tool, no mocks. Owner Esc. 12 ("server + client testing
   at the same time … no fragile glue") satisfied MCP-side.
+- **Security hardening — inbound/untrusted content (0.16.0)**: owner flagged a second trust boundary
+  (not "can something reach in" but "what does the tool process from a server/client/download it
+  connects to"). New `notes/security/threat-model.md` names every surface; the two the tool could
+  silently expose are closed: `bot_join` is **loopback-only unless `allowRemote`** (a bot parses the
+  server's packets in the driver process), and Paper jar downloads are **SHA-256-verified, fail-closed**.
+  `SECURITY.md`/`CLAUDE.md`/`decisions` updated. Default local workflow unchanged.
 - **Next — gather/combat goals** (`plans/goal-level-autonomy-2026-07.md`): `gather`/`chop`,
   `hunt`/`attack`, tool/weapon equip — delegating to Mineflayer's collectblock/pvp/tool where
   present, composed from primitives otherwise; then `craft` + `build`/`place`.

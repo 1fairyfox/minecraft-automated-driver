@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { createHash } from 'node:crypto';
 import { createJobRegistry } from '../src/jobs.mjs';
 import {
   createServerManager, deployPlugin, provisionServer, resolvePaperDownload,
@@ -17,16 +18,23 @@ const bytesResponse = (text) => ({
   ok: true, status: 200,
   body: new Blob([text]).stream(),
 });
+const sha256hex = (s) => createHash('sha256').update(s).digest('hex');
 
 // ── resolve + provision ──────────────────────────────────────────────────────
 
-test('resolvePaperDownload returns the server:default url/build/channel', async () => {
+test('resolvePaperDownload returns url/build/channel + the published sha256', async () => {
   const fetchImpl = async (url) => {
     assert.equal(String(url), 'https://fill.papermc.io/v3/projects/paper/versions/1.21.11/builds/latest');
     return jsonResponse({ id: 118, channel: 'STABLE', downloads: { 'server:default': { url: 'https://dl/paper.jar' } } });
   };
   assert.deepEqual(await resolvePaperDownload('1.21.11', { fetchImpl }),
-    { url: 'https://dl/paper.jar', build: 118, channel: 'STABLE' });
+    { url: 'https://dl/paper.jar', build: 118, channel: 'STABLE', sha256: null });
+
+  // When the API publishes a checksum, it is carried through for verification.
+  const withHash = async () => jsonResponse({
+    id: 119, channel: 'STABLE', downloads: { 'server:default': { url: 'https://dl/p.jar', checksums: { sha256: 'abc123' } } },
+  });
+  assert.equal((await resolvePaperDownload('1.21.11', { fetchImpl: withHash })).sha256, 'abc123');
 });
 
 test('resolvePaperDownload fails loudly on HTTP errors and missing downloads', async () => {
@@ -57,6 +65,32 @@ test('provisionServer downloads the jar and writes a loopback offline config', a
     assert.match(props, /server-ip=127\.0\.0\.1/);
     assert.equal(logs.length >= 2, true);
   } finally { await rm(dir, { recursive: true, force: true }); }
+});
+
+test('provisionServer verifies the published sha256 and fails closed on a mismatch', async () => {
+  const bytes = 'FAKE-PAPER-JAR';
+  const good = async (url) => (String(url).includes('builds/latest')
+    ? jsonResponse({ id: 7, channel: 'STABLE', downloads: { 'server:default': { url: 'https://dl/x.jar', checksums: { sha256: sha256hex(bytes) } } } })
+    : bytesResponse(bytes));
+  const bad = async (url) => (String(url).includes('builds/latest')
+    ? jsonResponse({ id: 7, channel: 'STABLE', downloads: { 'server:default': { url: 'https://dl/x.jar', checksums: { sha256: 'deadbeef' } } } })
+    : bytesResponse(bytes));
+
+  // Matching checksum → the jar is kept.
+  const okDir = join(await mkdtemp(join(tmpdir(), 'paper-ok-')), 'srv');
+  try {
+    const logs = [];
+    const r = await provisionServer({ version: '1.21.11', dir: okDir, fetchImpl: good, log: (l) => logs.push(l) });
+    assert.equal(await readFile(r.jarPath, 'utf8'), bytes);
+    assert.equal(logs.some((l) => /sha256 verified/.test(l)), true);
+  } finally { await rm(okDir, { recursive: true, force: true }); }
+
+  // Mismatch → reject AND delete the tampered jar (fail closed — never boot it).
+  const badDir = join(await mkdtemp(join(tmpdir(), 'paper-bad-')), 'srv');
+  try {
+    await assert.rejects(() => provisionServer({ version: '1.21.11', dir: badDir, fetchImpl: bad }), /integrity check/);
+    await assert.rejects(() => readFile(join(badDir, 'paper.jar')), /ENOENT/);
+  } finally { await rm(badDir, { recursive: true, force: true }); }
 });
 
 test('provisionServer surfaces a failed jar download', async () => {

@@ -5,6 +5,16 @@
 // server; the real thing is exercised by scripts/bot-smoke.mjs (local + CI).
 
 /**
+ * Loopback hosts a bot may connect to without an explicit remote opt-in. A Mineflayer bot
+ * parses the server's packets IN THIS (trusted) process, so connecting to an untrusted server
+ * means processing hostile input in-process — see SECURITY.md / notes/security/threat-model.md.
+ */
+export function isLoopbackHost(host) {
+  const h = String(host).toLowerCase().trim();
+  return h === 'localhost' || h === '::1' || h === '::ffff:127.0.0.1' || h === '127.0.0.1' || h.startsWith('127.');
+}
+
+/**
  * A recent-message ring buffer + the live bot handle, keyed by a registry id.
  * @param {object} deps
  * @param {(opts)=>object} deps.createBot  mineflayer factory (injected for tests)
@@ -28,7 +38,16 @@ export function createBotRegistry({ createBot, goalNear, logCap = 200 } = {}) {
      * Join a server. Resolves once the bot has spawned (or rejects on kick/error/timeout).
      * @returns { botId, username }
      */
-    async join({ host = '127.0.0.1', port = 25565, username = 'DriverBot', timeoutMs = 30_000 } = {}) {
+    async join({ host = '127.0.0.1', port = 25565, username = 'DriverBot', timeoutMs = 30_000, allowRemote = false } = {}) {
+      // A bot parses the server's packets IN THIS PROCESS, so a hostile/compromised server gets
+      // to feed untrusted input to the trusted driver. Refuse a non-loopback host unless the
+      // caller explicitly opts in for a server it trusts (SECURITY.md / threat-model).
+      if (!allowRemote && !isLoopbackHost(host)) {
+        throw new Error(
+          `refusing to join non-loopback host '${host}': a bot parses that server's packets in-process, `
+          + 'so an untrusted server could attack the driver. Pass allowRemote:true to connect to a server you trust.',
+        );
+      }
       const id = `b${++counter}`;
       const bot = createBot({ host, port, username, auth: 'offline' });
       const messages = [];

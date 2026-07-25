@@ -40,6 +40,11 @@ The owner's hard requirement: **no security holes attributable to them.**
   Self-disable uses each platform's *natural* mechanism, never a hack.
 - Reflection **writes** are allowlisted and off unless a session explicitly opens them.
 - **GitHub releases only** — never publish the agents to mod/plugin marketplaces.
+- **Inbound untrusted content is a trust boundary too** (owner call 2026-07-25): a bot parses a
+  server's packets *in the driver process*, so `bot_join` is **loopback-only unless `allowRemote`**;
+  downloaded Paper jars are **SHA-256-verified, fail-closed**; don't run the agent-enabled client
+  against — or beside plugins/mods — you don't trust; `build_gradle` runs the checkout's own code.
+  Full surface-by-surface analysis + operator brace list: `notes/security/threat-model.md`.
 
 Any change touching these rules updates `SECURITY.md` in the same commit.
 
