@@ -98,6 +98,9 @@ function fakeBotRegistry() {
     messages: (id) => ({ id, lines: [{ text: 'hi', at: 'now' }] }),
     moveTo: async (id, a) => ({ arrived: true, position: { x: a.x, y: a.y, z: a.z } }),
     navigate: async (id, a) => ({ arrived: true, position: { x: a.x, y: a.y, z: a.z } }),
+    gather: async (id, a) => ({ block: a.block, requested: a.count ?? 1, gathered: a.count ?? 1 }),
+    hunt: async (id, a) => ({ mob: a.mob, requested: a.count ?? 1, killed: a.count ?? 1 }),
+    equip: async (id, a) => ({ equipped: a.item, destination: a.destination ?? 'hand' }),
     inventory: (id) => ({ id, items: [{ name: 'dirt', count: 1, slot: 0 }] }),
     list: () => [{ id: 'b1', username: 'DriverBot', state: 'spawned' }],
     quit: (id) => { if (id === 'b9') throw new Error(`no bot ${id}`); return { quit: id }; },
@@ -208,6 +211,41 @@ test('goal_navigate dispatches through the goal engine to a target\'s native pat
   const missing = await client.callTool({ name: 'goal_navigate', arguments: { targetId: 'zzz', x: 0, y: 0, z: 0 } });
   assert.equal(missing.isError, true);
   assert.match(missing.content[0].text, /no target zzz/);
+  await close();
+});
+
+test('goal_gather / goal_hunt / bot_equip dispatch through the bot lane; a non-gathering target is refused', async () => {
+  const reg = fakeBotRegistry();
+  const { conn: fabric } = fakeAgentConn('fabric');
+  const { client, close } = await connected({
+    l1: { botRegistry: reg, agentHandshake: async () => ({ v: 1, port: 6000, token: 't' }), agentConnect: async () => fabric },
+  });
+  await client.callTool({ name: 'bot_join', arguments: { username: 'Reaper' } });
+  const c = JSON.parse((await client.callTool({ name: 'agent_connect', arguments: { dir: 'C:/client', kind: 'fabric' } })).content[0].text);
+
+  const g = JSON.parse((await client.callTool({ name: 'goal_gather', arguments: { targetId: 'b1', block: 'oak_log', count: 2 } })).content[0].text);
+  assert.equal(g.strategy, 'native');
+  assert.equal(g.block, 'oak_log');
+  assert.equal(g.gathered, 2);
+
+  const h = JSON.parse((await client.callTool({ name: 'goal_hunt', arguments: { targetId: 'b1', mob: 'zombie', weapon: 'iron_sword' } })).content[0].text);
+  assert.equal(h.strategy, 'native');
+  assert.equal(h.killed, 1);
+
+  const e = JSON.parse((await client.callTool({ name: 'bot_equip', arguments: { botId: 'b1', item: 'iron_sword' } })).content[0].text);
+  assert.deepEqual(e, { equipped: 'iron_sword', destination: 'hand' });
+
+  // The Fabric client agent advertises no gather/hunt capability → refused cleanly (not a crash) —
+  // the anti-hack gate at the tool boundary (deep behaviour is unit-tested in goals/bot tests).
+  for (const [name, args] of [
+    ['goal_gather', { targetId: c.connectionId, block: 'stone' }],
+    ['goal_hunt', { targetId: c.connectionId, mob: 'cow' }],
+  ]) {
+    const res = await client.callTool({ name, arguments: args });
+    assert.equal(res.isError, true, `${name} should refuse the client agent`);
+    assert.match(res.content[0].text, /cannot (gather|hunt)/);
+  }
+  assert.equal((await client.callTool({ name: 'goal_gather', arguments: { targetId: 'zzz', block: 'stone' } })).isError, true);
   await close();
 });
 

@@ -59,3 +59,25 @@ export async function navigate(executor, { x, y, z, range = 1 }, { planFn = plan
     `target ${executor.id} cannot navigate: needs 'navigate', or 'world_snapshot'+position+look+move`,
   );
 }
+
+/**
+ * Delegate a goal to a target's NATIVE capability, or refuse with a clear error when it isn't
+ * advertised. Native-only for now — the Mineflayer bot lane satisfies gather/hunt (collectblock/
+ * pvp); no primitive-composition path exists yet (the Fabric client agent has no block-find/mine/
+ * attack ops), so a missing capability is NAMED, not glued — the anti-hack contract. One shared
+ * body so gather and hunt don't drift (or duplicate).
+ */
+async function nativeGoal(executor, { cap, lib, verb, args }) {
+  if (!executor.has(cap)) {
+    throw new Error(`target ${executor.id} cannot ${verb}: no '${cap}' capability (the Mineflayer bot lane provides it via ${lib})`);
+  }
+  return { strategy: 'native', ...(await executor.invoke(cap, args)) };
+}
+
+/** Gather (mine/chop/collect) blocks by name — delegates to the native `gather` capability. */
+export const gather = (executor, args = {}) =>
+  nativeGoal(executor, { cap: 'gather', lib: 'mineflayer-collectblock', verb: 'gather', args });
+
+/** Hunt (attack) mobs by name — delegates to the native `hunt` capability. */
+export const hunt = (executor, args = {}) =>
+  nativeGoal(executor, { cap: 'hunt', lib: 'mineflayer-pvp', verb: 'hunt', args });

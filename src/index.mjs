@@ -26,7 +26,7 @@ import { ensureJava } from './java.mjs';
 import { readHandshake, connectAgent } from './agent.mjs';
 import { createBotRegistry } from './bot.mjs';
 import { createTargetRegistry, agentExecutor, botExecutor } from './executors.mjs';
-import { navigate as navigateGoal } from './goals.mjs';
+import { navigate as navigateGoal, gather as gatherGoal, hunt as huntGoal } from './goals.mjs';
 import { menuNavigate, serverConnect, worldCreate, worldEnter, worldLeave, settingsSet, sliderRaw } from './flows.mjs';
 import { createClientManager } from './client.mjs';
 import { runScenario, validateScenario } from './scenario.mjs';
@@ -74,12 +74,17 @@ export async function createServer({
     const mf = await import('mineflayer');
     const { Vec3 } = await import('vec3');
     const pf = (await import('mineflayer-pathfinder')).default; // CommonJS default = module.exports
+    const { plugin: collectBlock } = await import('mineflayer-collectblock');
+    const { plugin: pvp } = await import('mineflayer-pvp');
     return createBotRegistry({
       createBot: (opts) => {
         const bot = mf.default.createBot(opts);
         bot.vec3 = (x, y, z) => new Vec3(x, y, z);
-        // Load the A* pathfinder so the bot's native `navigate` capability works.
+        // Load the plugins the bot's native capabilities delegate to: A* pathfinding (navigate),
+        // block collection (gather), and PvP (hunt). collectblock needs pathfinder loaded.
         bot.loadPlugin(pf.pathfinder);
+        bot.loadPlugin(collectBlock);
+        bot.loadPlugin(pvp);
         bot.once('spawn', () => bot.pathfinder.setMovements(new pf.Movements(bot)));
         return bot;
       },
@@ -706,6 +711,10 @@ export async function createServer({
     (reg, id, args) => reg.moveTo(id, args));
   botTool('bot_inventory', 'Bot inventory', 'List the items in the bot\'s inventory.', {},
     (reg, id) => reg.inventory(id));
+  botTool('bot_equip', 'Equip an item',
+    'Equip an item/tool/weapon by inventory name to a destination (hand/off-hand/head/torso/legs/feet; default hand).',
+    { item: z.string().min(1), destination: z.string().optional() },
+    (reg, id, { item, destination }) => reg.equip(id, { item, destination }));
   botTool('bot_quit', 'Disconnect a bot', 'Disconnect and forget a bot.', {},
     (reg, id) => { const r = reg.quit(id); targets.remove(id); return r; });
 
@@ -742,29 +751,67 @@ export async function createServer({
     },
   );
 
-  server.registerTool(
-    'goal_navigate',
-    {
-      title: 'Navigate a target to a position',
-      description:
-        'A goal-level intent: get a target (by targetId from targets_list) to (x,y,z) — one ' +
-        'call, many steps. The engine picks a strategy from the target\'s advertised ' +
-        'capabilities: a native pathfinder (Mineflayer bots) if present, else an MCP-side A* ' +
-        'over the target\'s world snapshot walked with its move/look primitives.',
-      inputSchema: {
-        targetId: z.string().describe('A target id from targets_list'),
-        x: z.number(), y: z.number(), z: z.number(),
-        range: z.number().int().min(0).optional().describe('Accept any block within this range (default 1)'),
+  // The goal-level tools share one shape: {targetId, …params} → run a goal over that target,
+  // returning its result or a clean tool error. A tiny helper keeps each a single registration
+  // (mirrors botTool / the agentTools table) rather than near-identical try/catch blocks.
+  const goalTool = (name, meta, run) =>
+    server.registerTool(
+      name,
+      {
+        title: meta.title,
+        description: meta.description,
+        inputSchema: { targetId: z.string().describe('A target id from targets_list'), ...meta.schema },
       },
+      async ({ targetId, ...rest }) => {
+        try {
+          return text(await run(targets.get(targetId), rest));
+        } catch (err) {
+          return failure(err);
+        }
+      },
+    );
+
+  goalTool('goal_navigate', {
+    title: 'Navigate a target to a position',
+    description:
+      'A goal-level intent: get a target (by targetId from targets_list) to (x,y,z) — one call, ' +
+      'many steps. The engine picks a strategy from the target\'s advertised capabilities: a native ' +
+      'pathfinder (Mineflayer bots) if present, else an MCP-side A* over the target\'s world snapshot ' +
+      'walked with its move/look primitives.',
+    schema: {
+      x: z.number(), y: z.number(), z: z.number(),
+      range: z.number().int().min(0).optional().describe('Accept any block within this range (default 1)'),
     },
-    async ({ targetId, x, y, z, range }) => {
-      try {
-        return text(await navigateGoal(targets.get(targetId), { x, y, z, range }));
-      } catch (err) {
-        return failure(err);
-      }
+  }, (target, a) => navigateGoal(target, a));
+
+  goalTool('goal_gather', {
+    title: 'Gather blocks by name',
+    description:
+      'A goal-level intent: have a target gather (mine/chop/collect) blocks by name — find the ' +
+      'nearest matching block, path to it, auto-equip the best tool, mine it, and collect the drop, ' +
+      '`count` times. Native to the Mineflayer bot lane (mineflayer-collectblock); a target without a ' +
+      '`gather` capability is refused with a clear error.',
+    schema: {
+      block: z.string().min(1).describe('Block name, e.g. oak_log, stone, iron_ore'),
+      count: z.number().int().positive().optional().describe('How many to gather (default 1)'),
+      maxDistance: z.number().int().positive().optional().describe('Search radius in blocks (default 64)'),
     },
-  );
+  }, (target, a) => gatherGoal(target, a));
+
+  goalTool('goal_hunt', {
+    title: 'Hunt a mob by name',
+    description:
+      'A goal-level intent: have a target hunt (attack) mobs by name — optionally equip a weapon, ' +
+      'target the nearest matching mob in range, attack until it dies or a timeout, `count` times. ' +
+      'Native to the Mineflayer bot lane (mineflayer-pvp); a target without a `hunt` capability is ' +
+      'refused with a clear error.',
+    schema: {
+      mob: z.string().min(1).describe('Mob name, e.g. zombie, skeleton, cow'),
+      count: z.number().int().positive().optional().describe('How many to kill (default 1)'),
+      weapon: z.string().optional().describe('Inventory item name to equip first, e.g. iron_sword'),
+      maxDistance: z.number().int().positive().optional().describe('Target search radius in blocks (default 32)'),
+    },
+  }, (target, a) => huntGoal(target, a));
 
   // ── Orchestration: semantic convenience verbs (notes/plans/semantic-verbs-2026-07.md) ──
   // Each is one high-level intent that the flow engine expands into the many UI steps, planned

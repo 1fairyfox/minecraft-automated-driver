@@ -45,15 +45,24 @@ test('botExecutor maps canonical capabilities onto the bot registry', async () =
     messages: (id, a) => ({ id, a }),
     inventory: (id) => ({ id, items: [] }),
     moveTo: (id, args) => { calls.push(['moveTo', id, args]); return { arrived: true }; },
+    gather: (id, args) => ({ gathered: args.count ?? 1, block: args.block }),
+    hunt: (id, args) => ({ killed: args.count ?? 1, mob: args.mob }),
+    equip: (id, args) => ({ equipped: args.item }),
   };
   const ex = botExecutor({ id: 'b1', registry });
   assert.equal(ex.kind, 'bot');
-  assert.deepEqual([...ex.capabilities].sort(), ['chat', 'inventory', 'messages', 'move', 'navigate', 'status']);
+  assert.deepEqual([...ex.capabilities].sort(),
+    ['chat', 'equip', 'gather', 'hunt', 'inventory', 'messages', 'move', 'navigate', 'status']);
 
   assert.deepEqual(await ex.invoke('status'), { id: 'b1', state: 'spawned' });
   assert.deepEqual(await ex.invoke('chat', { message: 'hi' }), { sent: 'hi' });
   assert.deepEqual(await ex.invoke('move', { x: 1, y: 2, z: 3 }), { arrived: true });
   assert.deepEqual(calls, [['status', 'b1'], ['chat', 'b1', 'hi'], ['moveTo', 'b1', { x: 1, y: 2, z: 3, timeoutMs: undefined }]]);
+
+  // The gather/hunt/equip capabilities map onto the registry with their arg shapes.
+  assert.deepEqual(await ex.invoke('gather', { block: 'oak_log', count: 2 }), { gathered: 2, block: 'oak_log' });
+  assert.deepEqual(await ex.invoke('hunt', { mob: 'zombie' }), { killed: 1, mob: 'zombie' });
+  assert.deepEqual(await ex.invoke('equip', { item: 'iron_sword' }), { equipped: 'iron_sword' });
 });
 
 test('botExecutor refuses an unknown capability and validates inputs', async () => {

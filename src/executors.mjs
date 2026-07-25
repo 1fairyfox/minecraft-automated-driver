@@ -42,6 +42,10 @@ function botCapabilityMap(registry, id) {
     move: ({ x, y, z, timeoutMs } = {}) => registry.moveTo(id, { x, y, z, timeoutMs }),
     // Native A* pathfinding (mineflayer-pathfinder) — the goal engine prefers this.
     navigate: ({ x, y, z, range, timeoutMs } = {}) => registry.navigate(id, { x, y, z, range, timeoutMs }),
+    // Native gather/hunt (mineflayer-collectblock / mineflayer-pvp) + equip — the goal engine delegates.
+    gather: ({ block, count, maxDistance, timeoutMs } = {}) => registry.gather(id, { block, count, maxDistance, timeoutMs }),
+    hunt: ({ mob, count, weapon, maxDistance, timeoutMs } = {}) => registry.hunt(id, { mob, count, weapon, maxDistance, timeoutMs }),
+    equip: ({ item, destination } = {}) => registry.equip(id, { item, destination }),
   };
 }
 

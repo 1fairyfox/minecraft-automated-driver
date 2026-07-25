@@ -2,7 +2,7 @@
 // Fake executors only — pure orchestration.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { navigate, walkWaypoints, yawTo } from '../src/goals.mjs';
+import { navigate, walkWaypoints, yawTo, gather, hunt } from '../src/goals.mjs';
 
 function fakeExecutor(caps, handlers = {}) {
   const invokes = [];
@@ -74,4 +74,25 @@ test('navigate rejects when not in a world, or the target lacks the capabilities
 
   const cannot = fakeExecutor(['position']); // no navigate, no snapshot+move
   await assert.rejects(() => navigate(cannot, { x: 1, y: 1, z: 1 }), /cannot navigate/);
+});
+
+test('gather/hunt delegate to a native capability, and are refused (cleanly) without it', async () => {
+  const bot = fakeExecutor(['gather', 'hunt'], {
+    gather: (a) => ({ gathered: a.count ?? 1, block: a.block }),
+    hunt: (a) => ({ killed: a.count ?? 1, mob: a.mob }),
+  });
+  const g = await gather(bot, { block: 'oak_log', count: 3 });
+  assert.equal(g.strategy, 'native');
+  assert.equal(g.gathered, 3);
+  assert.deepEqual(bot.invokes[0], { cap: 'gather', args: { block: 'oak_log', count: 3 } });
+
+  const h = await hunt(bot, { mob: 'zombie', weapon: 'iron_sword' });
+  assert.equal(h.strategy, 'native');
+  assert.equal(h.killed, 1);
+  assert.equal(bot.invokes[1].cap, 'hunt');
+
+  // No composition path yet for a backend without the capability → a clear error, not glue.
+  const cannot = fakeExecutor(['move']);
+  await assert.rejects(() => gather(cannot, { block: 'stone' }), /cannot gather/);
+  await assert.rejects(() => hunt(cannot, { mob: 'cow' }), /cannot hunt/);
 });
