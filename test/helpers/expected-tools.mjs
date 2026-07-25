@@ -10,6 +10,7 @@ export const EXPECTED_TOOLS = [
   'driver_status', 'goal_navigate', 'instance_close', 'instance_open', 'instances_list',
   'job_kill', 'job_log', 'job_status', 'jobs_list',
   'os_screenshot', 'os_windows_list',
+  'scenario_run',
   'server_exec', 'server_provision', 'server_start', 'server_stop', 'servers_list',
   'targets_list',
   'ui_menu_navigate', 'ui_server_connect', 'ui_settings_set', 'ui_slider',

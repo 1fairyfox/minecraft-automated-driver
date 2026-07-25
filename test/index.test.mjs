@@ -690,3 +690,221 @@ test('server_exec / server_stop / servers_list plumb through and surface errors'
   }
   await close();
 });
+
+// ── protocol: scenario_run (multi-target orchestration; engine unit-tested in scenario.test.mjs;
+//    these prove the real provisioners/actions wiring over the fake managers) ──────────────────
+
+test('scenario_run provisions server+bot together, runs cross-target steps, and guarantees teardown', async () => {
+  const jobs = createJobRegistry();
+  const servers = fakeServers();
+  const reg = fakeBotRegistry();
+  const deployed = [];
+  const { client, close } = await connected({
+    jobs,
+    servers,
+    l1: {
+      botRegistry: reg,
+      provision: async ({ dir }) => ({ dir, jarPath: `${dir}/paper.jar`, build: 1, channel: 'STABLE' }),
+      deploy: async ({ pluginJar }) => { deployed.push(pluginJar); return { deployed: pluginJar }; },
+      java: async () => ({ javaPath: '/managed/java', major: 21, provisioned: true }),
+    },
+  });
+
+  const snap = JSON.parse((await client.callTool({
+    name: 'scenario_run',
+    arguments: {
+      name: 'srv+bot',
+      actors: [
+        { id: 'srv', kind: 'server', version: '1.21.11', port: 25610, plugins: ['x.jar'] },
+        { id: 'b1', kind: 'bot', port: 25610, username: 'ScenBot' },
+      ],
+      steps: [
+        { action: 'server_exec', actor: 'srv', command: 'say hello' },
+        { action: 'invoke', actor: 'b1', capability: 'chat', args: { message: '/list' } },
+        { action: 'invoke', actor: 'b1', capability: 'status' },
+        { action: 'wait', ms: 0 },
+      ],
+      waitMs: 5000,
+    },
+  })).content[0].text);
+
+  assert.equal(snap.status, 'succeeded');
+  const report = snap.result;
+  assert.equal(report.name, 'srv+bot');
+  assert.equal(report.ok, true);
+  assert.deepEqual(report.provisioned.map((p) => [p.id, p.ok]), [['srv', true], ['b1', true]]);
+  assert.deepEqual(deployed, ['x.jar']); // the plugin was deployed during provisioning
+  // Cross-target steps: server console, bot chat, bot status, a settle.
+  assert.equal(report.steps[0].result.sent, 'say hello');
+  assert.equal(report.steps[1].result.sent, '/list');
+  assert.equal(report.steps[2].result.state, 'spawned');
+  assert.equal(report.steps[3].result.waited, 0);
+  // Teardown reverse order: bot quit, then server stop.
+  assert.deepEqual(report.teardown.map((t) => [t.id, t.ok]), [['b1', true], ['srv', true]]);
+  const kinds = servers.calls.map((c) => c[0]);
+  assert.ok(kinds.includes('start') && kinds.includes('exec') && kinds.includes('stop'));
+  // The bot executor was deregistered on teardown.
+  assert.deepEqual(JSON.parse((await client.callTool({ name: 'targets_list', arguments: {} })).content[0].text), []);
+  await close();
+});
+
+test('scenario_run provisions a spawned client + an attached agent as executors, drives them, tears down', async () => {
+  const jobs = createJobRegistry();
+  const killed = [];
+  const clientManager = {
+    spawn: async () => ({ clientId: 'c1', jobId: 'jc', connectDir: '/cdir' }),
+    list: () => [],
+    kill: (id) => { killed.push(id); return { killed: id }; },
+  };
+  const { conn: fabric } = fakeAgentConn('fabric');
+  const { conn: paper, closed: paperClosed } = fakeAgentConn('paper');
+  const handshakeCalls = [];
+  const { client, close } = await connected({
+    jobs,
+    l1: {
+      clientManager,
+      agentHandshake: async (dir, o) => { handshakeCalls.push([dir, o?.kind]); return { v: 1, port: dir === '/cdir' ? 6000 : 5000, token: 't' }; },
+      agentConnect: async ({ port }) => (port === 6000 ? fabric : paper),
+    },
+  });
+
+  const snap = JSON.parse((await client.callTool({
+    name: 'scenario_run',
+    arguments: {
+      name: 'client+agent',
+      actors: [
+        { id: 'cli', kind: 'client', agentDir: '/a' },
+        { id: 'srv', kind: 'agent', dir: '/srv', layout: 'paper' },
+      ],
+      steps: [
+        { action: 'invoke', actor: 'cli', capability: 'screen' },
+        { action: 'invoke', actor: 'srv', capability: 'state' },
+      ],
+      waitMs: 5000,
+    },
+  })).content[0].text);
+
+  const report = snap.result;
+  assert.equal(report.ok, true);
+  const cli = report.provisioned.find((p) => p.id === 'cli');
+  assert.equal(cli.info.clientId, 'c1');
+  assert.ok(cli.info.capabilities.includes('screen'));
+  assert.equal(cli.info.targetId, cli.info.connectionId);
+  assert.match(report.steps[0].result.tree, /TitleScreen/);
+  assert.equal(report.steps[1].result.players[0].name, 'Alice');
+  assert.deepEqual(handshakeCalls, [['/cdir', 'fabric'], ['/srv', 'paper']]);
+  // Teardown reverse order: the attached agent, then the spawned client (killed).
+  assert.deepEqual(report.teardown.map((t) => [t.id, t.ok]), [['srv', true], ['cli', true]]);
+  assert.equal(paperClosed.value, true);
+  assert.deepEqual(killed, ['c1']);
+  assert.deepEqual(JSON.parse((await client.callTool({ name: 'targets_list', arguments: {} })).content[0].text), []);
+  await close();
+});
+
+test('scenario_run can spawn a client without connecting its agent (connect:false)', async () => {
+  const jobs = createJobRegistry();
+  const killed = [];
+  const clientManager = {
+    spawn: async () => ({ clientId: 'c1', jobId: 'jc', connectDir: '/cdir' }),
+    list: () => [],
+    kill: (id) => { killed.push(id); return { killed: id }; },
+  };
+  const { client, close } = await connected({ jobs, l1: { clientManager } });
+  const snap = JSON.parse((await client.callTool({
+    name: 'scenario_run',
+    arguments: { actors: [{ id: 'cli', kind: 'client', connect: false }], waitMs: 5000 },
+  })).content[0].text);
+
+  const report = snap.result;
+  assert.equal(report.ok, true);
+  const cli = report.provisioned[0];
+  assert.equal(cli.info.clientId, 'c1');
+  assert.equal(cli.info.connectionId, undefined); // not connected → no executor
+  assert.equal(cli.info.targetId, undefined);
+  assert.deepEqual(report.teardown, [{ id: 'cli', ok: true }]);
+  assert.deepEqual(killed, ['c1']);
+  await close();
+});
+
+test('scenario_run: a step failure still tears everything down; a bad spec errors at the boundary', async () => {
+  const jobs = createJobRegistry();
+  const servers = fakeServers();
+  const reg = fakeBotRegistry();
+  const { client, close } = await connected({
+    jobs,
+    servers,
+    l1: {
+      botRegistry: reg,
+      provision: async ({ dir }) => ({ dir }),
+      java: async () => ({ javaPath: '/j' }),
+    },
+  });
+
+  // Navigating the SERVER (which has no targetId) fails; the bot + server still tear down.
+  const snap = JSON.parse((await client.callTool({
+    name: 'scenario_run',
+    arguments: {
+      actors: [{ id: 'srv', kind: 'server', version: 'v' }, { id: 'b1', kind: 'bot' }],
+      steps: [{ action: 'navigate', actor: 'srv', x: 0, y: 0, z: 0 }],
+      waitMs: 5000,
+    },
+  })).content[0].text);
+  const report = snap.result;
+  assert.equal(report.ok, false);
+  assert.equal(report.steps[0].ok, false);
+  assert.match(report.steps[0].error, /not a controllable target/);
+  assert.deepEqual(report.teardown.map((t) => t.id).sort(), ['b1', 'srv']);
+  assert.ok(report.teardown.every((t) => t.ok));
+
+  // A structural mistake → an immediate tool error, not a job to poll.
+  const bad = await client.callTool({
+    name: 'scenario_run',
+    arguments: { actors: [{ id: 'x', kind: 'bot' }], steps: [{ action: 'invoke', actor: 'zzz', capability: 'status' }] },
+  });
+  assert.equal(bad.isError, true);
+  assert.match(bad.content[0].text, /unknown actor 'zzz'/);
+  await close();
+});
+
+test('scenario_run without waitMs returns a running job whose result becomes the report', async () => {
+  const jobs = createJobRegistry();
+  const reg = fakeBotRegistry();
+  const { client, close } = await connected({ jobs, l1: { botRegistry: reg } });
+  const snap = JSON.parse((await client.callTool({
+    name: 'scenario_run',
+    arguments: { actors: [{ id: 'b1', kind: 'bot' }], steps: [{ action: 'invoke', actor: 'b1', capability: 'status' }] },
+  })).content[0].text);
+  assert.equal(snap.status, 'running');
+  const done = await jobs.wait(snap.id);
+  assert.equal(done.status, 'succeeded');
+  assert.equal(done.result.ok, true);
+  await close();
+});
+
+test('scenario_run step-argument guards each fail cleanly (recorded, still torn down)', async () => {
+  const base = {
+    jobs: createJobRegistry(),
+    servers: fakeServers(),
+    l1: { botRegistry: fakeBotRegistry(), provision: async ({ dir }) => ({ dir }), java: async () => ({ javaPath: '/j' }) },
+  };
+  const cases = [
+    { actors: [{ id: 'b1', kind: 'bot' }], step: { action: 'invoke', actor: 'b1' }, re: /needs a capability/ },
+    { actors: [{ id: 'b1', kind: 'bot' }], step: { action: 'invoke', capability: 'status' }, re: /invoke step needs an actor/ },
+    { actors: [{ id: 'b1', kind: 'bot' }], step: { action: 'navigate', x: 0, y: 0, z: 0 }, re: /navigate step needs an actor/ },
+    { actors: [{ id: 'b1', kind: 'bot' }], step: { action: 'server_exec', command: 'x' }, re: /server_exec step needs an actor/ },
+    { actors: [{ id: 'b1', kind: 'bot' }], step: { action: 'server_exec', actor: 'b1', command: 'x' }, re: /is not a server/ },
+    { actors: [{ id: 'srv', kind: 'server', version: 'v' }], step: { action: 'server_exec', actor: 'srv' }, re: /needs a command/ },
+    { actors: [{ id: 'b1', kind: 'bot' }], step: { action: 'invoke', actor: 'b1', capability: 'slots' }, re: /has no capability 'slots'/ },
+  ];
+  for (const c of cases) {
+    const { client, close } = await connected(base);
+    const snap = JSON.parse((await client.callTool({
+      name: 'scenario_run', arguments: { actors: c.actors, steps: [c.step], waitMs: 5000 },
+    })).content[0].text);
+    assert.equal(snap.result.ok, false, `${c.re} should not be ok`);
+    assert.equal(snap.result.steps[0].ok, false);
+    assert.match(snap.result.steps[0].error, c.re);
+    assert.ok(snap.result.teardown.every((t) => t.ok), 'still tears down after a step failure');
+    await close();
+  }
+});
