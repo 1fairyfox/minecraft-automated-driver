@@ -73,7 +73,7 @@ public final class ClientControlServer {
             welcome.put("agent", "fabric");
             welcome.put("capabilities", List.of(
                 "screen", "click", "key", "screenshot", "position", "look", "move", "type", "slots", "close",
-                "world_list", "world_select"));
+                "world_list", "world_select", "slider"));
             welcome.put("events", List.of());
             writeLine(writer, welcome);
             String line;
@@ -127,6 +127,7 @@ public final class ClientControlServer {
             case "close" -> onClient(id, ClientOps::closeScreen);
             case "world_list" -> onClient(id, ClientOps::listWorlds);
             case "world_select" -> onClient(id, () -> ClientOps.selectWorld(str(req, "name")));
+            case "slider" -> onClient(id, () -> ClientOps.slider(str(req, "name"), doubleOrNull(req, "fraction"), doubleOrNull(req, "value")));
             case "move" -> move(id, str(req, "direction"), intOr(req, "ms", 400));
             default -> res(id, false, Map.of("error", "unknown op: " + op));
         };
@@ -189,6 +190,10 @@ public final class ClientControlServer {
 
     private static int intOr(JsonObject o, String key, int fallback) {
         return o.has(key) && !o.get(key).isJsonNull() ? o.get(key).getAsInt() : fallback;
+    }
+
+    private static Double doubleOrNull(JsonObject o, String key) {
+        return o.has(key) && !o.get(key).isJsonNull() ? o.get(key).getAsDouble() : null;
     }
 
     /**

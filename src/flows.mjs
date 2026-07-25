@@ -242,11 +242,26 @@ export async function settingsSet(executor, { path = [], control, value, labels 
   let result;
   if (numeric) {
     const r = await executor.invoke('slider', { name: control, value });
-    result = { control: r?.control ?? control, value: r?.value ?? value };
+    result = { control: r?.label ?? control, value: r?.value ?? value, fraction: r?.fraction };
   } else {
     const desired = typeof value === 'boolean' ? (value ? 'ON' : 'OFF') : value;
     result = await cycleControlTo(executor, control, desired, opts.cycle ?? {});
   }
   if (back) await clickWhenPresent(executor, L.done, opts.wait ?? {});
   return { set: control, to: value, ...result };
+}
+
+/**
+ * Raw slider access — get or set a slider on the CURRENT screen (the caller navigates there),
+ * straight through the agent's `slider` capability. `fraction` (0..1) sets any slider's raw
+ * progress; `value` sets an option-backed slider's typed value; neither reads. This is the
+ * low-level surface beneath settingsSet, for when you want the fraction or the exact value back.
+ */
+export async function sliderRaw(executor, { control, fraction, value } = {}) {
+  requireCaps(executor, ['slider'], 'set a slider');
+  const args = {};
+  if (control != null) args.name = control;
+  if (fraction != null) args.fraction = fraction;
+  if (value != null) args.value = value;
+  return executor.invoke('slider', args);
 }

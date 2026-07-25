@@ -12,6 +12,6 @@ export const EXPECTED_TOOLS = [
   'os_screenshot', 'os_windows_list',
   'server_exec', 'server_provision', 'server_start', 'server_stop', 'servers_list',
   'targets_list',
-  'ui_menu_navigate', 'ui_server_connect', 'ui_settings_set',
+  'ui_menu_navigate', 'ui_server_connect', 'ui_settings_set', 'ui_slider',
   'ui_world_create', 'ui_world_enter', 'ui_world_leave',
 ];

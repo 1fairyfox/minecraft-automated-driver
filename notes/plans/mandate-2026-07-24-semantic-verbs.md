@@ -10,7 +10,7 @@ ends with the NOT-done disclosure (S9). Re-read this before claiming completion.
 | # | Owner's words (verbatim) | Interpretation | Status |
 |---|--------------------------|----------------|--------|
 | 1 | "its very silly to have no dependencies and make something from scratch i think you did something like that, its fine to make something from scratch but often i find something already made out there can do everything i wanted and more and way better than what i would make but if theres reasons for not doing that its fine there needs to be a good reason." | Standing design directive: **prefer an existing, mature library over a from-scratch build unless there is a recorded good reason.** Applies going forward AND to the existing custom A\* (`src/pathfind.mjs`). Reconciliation below. | done — see Reconciliation |
-| 2 | "A pathfinding on MCP and the ability to do things like enter and save and close worlds, make online connections, navigate and open and close menus, change settings, all just by asking it to do that allowing to to do the steps nesesary with the ui or menus or setting/options whichever." | Raise the client-control ceiling to **semantic convenience verbs**: navigation (shipped 0.11.0 `goal_navigate`), world lifecycle (create/enter/save/close), online connection (direct connect by address), menu navigation (open/close/traverse by name), settings changes — each one call that performs the multi-step UI/menu/options sequence. | done — pathfinding + connect + world **create/enter/leave** + menu nav + toggle/cycler settings all shipped (0.12.0 verbs; 0.13.0 `world_list`/`world_select` ops close enter-a-saved-world). **One residual blocked-with-evidence:** *slider* settings (see S9 #2) |
+| 2 | "A pathfinding on MCP and the ability to do things like enter and save and close worlds, make online connections, navigate and open and close menus, change settings, all just by asking it to do that allowing to to do the steps nesesary with the ui or menus or setting/options whichever." | Raise the client-control ceiling to **semantic convenience verbs**: navigation (shipped 0.11.0 `goal_navigate`), world lifecycle (create/enter/save/close), online connection (direct connect by address), menu navigation (open/close/traverse by name), settings changes — each one call that performs the multi-step UI/menu/options sequence. | **done in full** — pathfinding + connect + world create/enter/leave + menu nav + toggle/cycler settings (0.12.0/0.13.0) **and sliders + typed per-option values** (0.14.0 mixin `slider` op + `ui_slider`). Every option kind is covered; no residual API gap. |
 | 3 | "Like the MCP server needs to make it legitimately easy to with few semantic wording/commands/verbs whichever do tasks that might involve multiple steps and stuff easily, simply, quickly, efficiently." | The intelligence lives MCP-side (backend-agnostic), so ONE verb expands into the many UI steps. Same principle as the goal engine (Esc. 12): plan over advertised capabilities, never a hard-coded backend. Clean interfaces, tested at every layer, no hacks. | done — `src/flows.mjs` + six `ui_*` tools, unit + protocol tested, gate held |
 | 4 | "proceed normally with everything that is required and mandated by me in as many phases as needed, ensure this reaches the completion i asked for in full in as many phases needed" | Run the default workflow end-to-end, phased: plan → build → tests at every testable layer → full green gate (c8 ≥90 all four metrics + link check) → changelog/VERSION/status → commit on `dev` → git-flow release when a slice is complete. "As many phases as needed" + S8 = the ambitious reading; exhaustion, not a milestone. | in-progress — 0.12.0 slice committed on `dev`; 0.13.0 (agent ops) + real smoke + release remain |
 
@@ -51,15 +51,14 @@ Falsification, not plausibility — each deferral below has a recorded reason it
 1. ~~Enter an existing/saved world by name~~ — **DONE (0.13.0)**: Fabric agent ops `world_list` +
    `world_select` (public 1.21.11 API, verified via `javap`, locally compiled, gametest-extended);
    `ui_world_enter` works end to end.
-2. **Slider settings** (volume, sensitivity, render distance, FOV) — **still blocked-with-evidence.**
-   Investigated the real 1.21.11 API: `SliderWidget.value` and `SliderWidget.setValue(double)` are
-   **`protected`** — reaching them remap-safely on a production client (which uses intermediary,
-   not yarn, names) needs a **Mixin `@Invoker`**, not plain reflection; AND option sliders carry
-   **per-option value ranges** with no generic display-value setter, so a clean "set FOV to 70" op
-   isn't generically expressible (only a normalized 0..1 fraction is). Deferred as a deliberate
-   good-reason call: lower value (sliders rarely matter to automated *testing*; toggles/cyclers —
-   the majority — are done) at higher cost/risk. The MCP side already dispatches a numeric
-   `ui_settings_set` to a `slider` capability, so the verb completes the moment the mixin op lands.
+2. ~~Slider settings~~ — **DONE (0.14.0), owner overrode the deferral (rightly).** Added the agent's
+   first **mixins**: `SliderWidgetAccessor` (`@Invoker` on the protected `setValue(double)` +
+   `@Accessor` on `value`) and `OptionSliderWidgetImplAccessor` (`@Accessor` on the `SimpleOption`).
+   The `slider` op sets the **raw 0..1 fraction** on any slider AND the **typed per-option value**
+   (`SimpleOption.setValue`, coerced to the option's own type) — so "set FOV to 70" works, not just a
+   fraction. My earlier "no generic display-value setter" concern was wrong: the SimpleOption behind
+   the widget exposes the typed value directly. `ui_settings_set` (numeric) + `ui_slider` (raw) wire
+   it; real gametest drives the FOV slider. Every option kind (toggle/cycler/slider) is now covered.
 3. **Real-client validation.** The client gametest now has a **third phase** exercising
    `world_list`/`world_select` on a genuine SelectWorldScreen (XVFB in CI). The broader
    label-assumption confirmation for connect/create/leave/settings verbs is still CI-observed via

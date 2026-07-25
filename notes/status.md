@@ -1,6 +1,6 @@
 # Status — Minecraft Automated Driver
 
-**Updated:** 2026-07-24 · **Version:** 0.13.0 · **Phase:** goal-level autonomy — capability seam (0.10.0) + universal navigation goal (0.11.0) + semantic convenience verbs (0.12.0) + world_list/world_select ops (0.13.0) shipped; next: slider agent op (mixin), then multi-target scenarios
+**Updated:** 2026-07-24 · **Version:** 0.14.0 · **Phase:** goal-level autonomy — capability seam (0.10.0) + navigation (0.11.0) + convenience verbs (0.12.0) + world_list/world_select (0.13.0) + slider/typed-option ops (0.14.0) shipped; next: multi-target scenarios (scenario_run)
 
 ## What this is
 
@@ -65,10 +65,14 @@ behind one tool surface. **Founding plan: `plans/roadmap-2026-07.md` — read it
   compiled), wiring `ui_world_enter` (retries `world_select` while the async list loads, then the
   op enters directly). Numeric `ui_settings_set` now forward-dispatches to a `slider` capability.
   Client gametest gains a third phase (Singleplayer → `world_list` → refuse-unknown `world_select`).
-- **Next — the slider agent op**: `SliderWidget.setValue` is protected → needs a Mixin `@Invoker`
-  (remap-safe) + accept the per-option range limits; the MCP `slider` dispatch already waits for it.
-  Then multi-target scenarios (`scenario_run`), gather/combat, craft/build.
-  Plans `plans/semantic-verbs-2026-07.md` + `plans/goal-level-autonomy-2026-07.md`.
+- **Sliders + typed option values are live (0.14.0)**: first agent **mixins** (`SliderWidgetAccessor`
+  `@Invoker(setValue)`/`@Accessor(value)`; `OptionSliderWidgetImplAccessor` `@Accessor(option)`), a
+  `slider` op (raw 0..1 fraction on any slider + TYPED per-option value via `SimpleOption.setValue`),
+  `ui_settings_set` numeric → typed set, new `ui_slider` raw tool, `flows.sliderRaw`. Real gametest
+  drives the OptionsScreen FOV slider (fraction + typed 90). The client-control API now covers every
+  option kind — no residual gap.
+- **Next — multi-target scenarios (`scenario_run`)**: provision + coordinate server + client + bots
+  together with teardown; then gather/combat, craft/build. Plan `plans/goal-level-autonomy-2026-07.md`.
 - **Phase 3 / L3 Paper agent live** since 0.4.0: control-protocol spec + Kotlin Paper
   agent (state/exec/events), disabled-by-default, real e2e smoke.
 - **Phase 2 / L1 live** since 0.3.0: gradle driver, job model, Paper provision/boot/

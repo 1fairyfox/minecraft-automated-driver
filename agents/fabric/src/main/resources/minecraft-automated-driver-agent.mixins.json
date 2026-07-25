@@ -1,0 +1,13 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "io.fairyfox.minecraft.automateddriver.fabric.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "client": [
+    "SliderWidgetAccessor",
+    "OptionSliderWidgetImplAccessor"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

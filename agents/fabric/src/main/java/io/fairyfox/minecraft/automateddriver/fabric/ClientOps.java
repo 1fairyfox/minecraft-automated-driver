@@ -9,16 +9,21 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import io.fairyfox.minecraft.automateddriver.fabric.mixin.OptionSliderWidgetImplAccessor;
+import io.fairyfox.minecraft.automateddriver.fabric.mixin.SliderWidgetAccessor;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gl.Framebuffer;
 import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.Element;
+import net.minecraft.client.gui.Updatable;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.screen.ingame.HandledScreen;
 import net.minecraft.client.gui.screen.world.WorldListWidget;
 import net.minecraft.client.gui.widget.ClickableWidget;
 import net.minecraft.client.gui.widget.PressableWidget;
+import net.minecraft.client.gui.widget.SliderWidget;
 import net.minecraft.client.gui.widget.TextFieldWidget;
+import net.minecraft.client.option.SimpleOption;
 import net.minecraft.client.input.MouseInput;
 import net.minecraft.client.network.ClientPlayerEntity;
 import net.minecraft.client.option.KeyBinding;
@@ -264,6 +269,100 @@ public final class ClientOps {
         }
         out.put("slots", slotList);
         return out;
+    }
+
+    // ── sliders + typed option values (client-coupled, via mixin accessors) ───
+
+    /**
+     * Read or set a slider control BY NAME — the raw slider surface the semantic click can't
+     * reach. Resolution: exact-or-unique-substring by label, or the sole slider when no name.
+     *
+     * <ul>
+     *   <li>{@code fraction} (0..1) → set the raw normalised progress on ANY slider (via the
+     *       {@link SliderWidgetAccessor} mixin), which also applies it to the backing game option.</li>
+     *   <li>{@code value} (a number) → set the option's TYPED value directly (e.g. FOV = 70) when
+     *       the slider is option-backed ({@link OptionSliderWidgetImplAccessor}); coerced to the
+     *       option's own type (int/long/float/double).</li>
+     *   <li>neither → just read.</li>
+     * </ul>
+     *
+     * Always returns {@code {handled, label, fraction, value}} — {@code value} being the option's
+     * typed value when option-backed, else null. {@code {handled:false,error}} when the named
+     * control is absent or isn't a slider.
+     */
+    public static Map<String, Object> slider(String name, Double fraction, Double value) {
+        Screen screen = MinecraftClient.getInstance().currentScreen;
+        Map<String, Object> out = new LinkedHashMap<>();
+        if (screen == null) {
+            out.put("handled", false);
+            out.put("error", "no screen open");
+            return out;
+        }
+        List<ClickableWidget> clickable = clickable(screen);
+        SliderWidget target = resolveSlider(clickable, name);
+        if (target == null) {
+            out.put("handled", false);
+            out.put("error", (name == null || name.isBlank()) ? "no unique slider on this screen" : "no slider matched '" + name + "'");
+            return out;
+        }
+        SliderWidgetAccessor acc = (SliderWidgetAccessor) target;
+        SimpleOption<?> option = (target instanceof OptionSliderWidgetImplAccessor osa) ? osa.mad$getOption() : null;
+        if (fraction != null) {
+            acc.mad$setValue(Math.max(0.0, Math.min(1.0, fraction)));
+        } else if (value != null) {
+            if (option == null) {
+                out.put("handled", false);
+                out.put("error", "typed value needs an option-backed slider; use fraction (0..1) for a raw slider");
+                return out;
+            }
+            setOptionValue(option, value);
+            if (target instanceof Updatable updatable) {
+                updatable.update(); // re-sync the widget's progress + label from the option
+            }
+        }
+        out.put("handled", true);
+        out.put("label", target.getMessage() == null ? "" : target.getMessage().getString());
+        out.put("fraction", acc.mad$getValue());
+        out.put("value", option == null ? null : option.getValue());
+        return out;
+    }
+
+    /** Resolve a slider by label (exact-or-unique-substring), or the sole slider when no name. */
+    private static SliderWidget resolveSlider(List<ClickableWidget> clickable, String name) {
+        if (name != null && !name.isBlank()) {
+            Optional<WidgetIntrospector.Widget> match = WidgetIntrospector.resolve(describe(clickable), name);
+            if (match.isPresent()) {
+                ClickableWidget w = clickable.get(match.get().index());
+                return w instanceof SliderWidget slider ? slider : null;
+            }
+            return null;
+        }
+        SliderWidget only = null;
+        for (ClickableWidget w : clickable) {
+            if (w instanceof SliderWidget slider) {
+                if (only != null) {
+                    return null; // more than one — ambiguous without a name
+                }
+                only = slider;
+            }
+        }
+        return only;
+    }
+
+    /** Set a {@link SimpleOption}'s value from a number, coerced to the option's own value type. */
+    @SuppressWarnings("unchecked")
+    private static void setOptionValue(SimpleOption<?> option, double v) {
+        SimpleOption<Object> o = (SimpleOption<Object>) option;
+        Object current = o.getValue();
+        if (current instanceof Integer) {
+            o.setValue((int) Math.round(v));
+        } else if (current instanceof Long) {
+            o.setValue((long) Math.round(v));
+        } else if (current instanceof Float) {
+            o.setValue((float) v);
+        } else {
+            o.setValue(v); // Double / best-effort
+        }
     }
 
     // ── world lifecycle: the SelectWorldScreen (client-coupled) ───────────────

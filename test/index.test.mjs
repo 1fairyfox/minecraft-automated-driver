@@ -216,13 +216,14 @@ test('ui_* convenience verbs dispatch through the flow engine over the capabilit
   // A fabric agent whose screen always offers Options + a Sound toggle already ON, so the menu
   // and settings verbs complete without polling (deep behaviour is unit-tested in flows.test.mjs).
   const fabric = {
-    welcome: { agent: 'fabric', capabilities: ['screen', 'click', 'key', 'screenshot', 'position', 'look', 'move', 'type', 'slots', 'close'], events: [] },
+    welcome: { agent: 'fabric', capabilities: ['screen', 'click', 'key', 'screenshot', 'position', 'look', 'move', 'type', 'slots', 'close', 'slider'], events: [] },
     request: async (op, params = {}) => {
       if (op === 'screen') return { tree: JSON.stringify({ screen: 'Menu', widgets: [{ label: 'Options' }, { label: 'Sound: ON' }, { label: 'Multiplayer' }] }) };
       if (op === 'click') return { clicked: true };
       if (op === 'type') return { typed: true, text: params.text };
       if (op === 'position') return { inWorld: false };
       if (op === 'close') return { closed: true };
+      if (op === 'slider') return { handled: true, label: 'FOV: 70', fraction: 0.5, value: 70 };
       throw new Error(`unknown op ${op}`);
     },
     events: () => [], close: () => {},
@@ -240,6 +241,11 @@ test('ui_* convenience verbs dispatch through the flow engine over the capabilit
   assert.equal(set.to, true);
   assert.equal(set.control, 'Sound: ON');
 
+  // Raw slider access dispatches through the slider capability.
+  const slid = JSON.parse((await client.callTool({ name: 'ui_slider', arguments: { targetId: c.connectionId, control: 'FOV', value: 70 } })).content[0].text);
+  assert.equal(slid.handled, true);
+  assert.equal(slid.value, 70);
+
   // The world/connection verbs cleanly refuse a target lacking the UI capabilities (the bot) —
   // proving the capability-gated dispatch: a tool error, never a crash.
   for (const [name, args] of [
@@ -247,6 +253,7 @@ test('ui_* convenience verbs dispatch through the flow engine over the capabilit
     ['ui_world_create', { targetId: 'b1', name: 'W' }],
     ['ui_world_enter', { targetId: 'b1', name: 'W' }],
     ['ui_world_leave', { targetId: 'b1' }],
+    ['ui_slider', { targetId: 'b1', control: 'FOV', value: 1 }],
   ]) {
     const res = await client.callTool({ name, arguments: args });
     assert.equal(res.isError, true, `${name} should refuse the bot`);
