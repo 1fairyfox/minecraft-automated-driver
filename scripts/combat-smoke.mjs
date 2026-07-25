@@ -10,18 +10,12 @@
 import { rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import mineflayer from 'mineflayer';
-import { Vec3 } from 'vec3';
-import pathfinderPkg from 'mineflayer-pathfinder';
-const { pathfinder, Movements, goals } = pathfinderPkg;
-import { plugin as collectBlock } from 'mineflayer-collectblock';
-import { plugin as pvp } from 'mineflayer-pvp';
 import { createJobRegistry } from '../src/jobs.mjs';
 import { createServerManager } from '../src/paper.mjs';
-import { createBotRegistry } from '../src/bot.mjs';
 import { createTargetRegistry, botExecutor } from '../src/executors.mjs';
 import { gather, hunt } from '../src/goals.mjs';
 import { bootPaper } from './lib/paper-smoke.mjs';
+import { createSmokeBots } from './lib/smoke-bots.mjs';
 
 const args = process.argv.slice(2);
 const flag = (n, d = null) => { const i = args.indexOf(`--${n}`); return i === -1 ? d : args[i + 1]; };
@@ -31,18 +25,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 const jobs = createJobRegistry({ logCap: 10_000 });
 const servers = createServerManager({ jobs });
-const bots = createBotRegistry({
-  createBot: (opts) => {
-    const b = mineflayer.createBot(opts);
-    b.vec3 = (x, y, z) => new Vec3(x, y, z);
-    b.loadPlugin(pathfinder);
-    b.loadPlugin(collectBlock);
-    b.loadPlugin(pvp);
-    b.once('spawn', () => b.pathfinder.setMovements(new Movements(b)));
-    return b;
-  },
-  goalNear: (x, y, z, range) => new goals.GoalNear(x, y, z, range),
-});
+const bots = createSmokeBots();
 const targets = createTargetRegistry();
 const work = join(tmpdir(), 'minecraft-automated-driver', `combat-smoke-${Date.now()}`);
 const say = (m) => console.log(m);
