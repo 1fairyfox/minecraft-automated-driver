@@ -14,6 +14,46 @@ export function isLoopbackHost(host) {
   return h === 'localhost' || h === '::1' || h === '::ffff:127.0.0.1' || h === '127.0.0.1' || h.startsWith('127.');
 }
 
+/** Best-effort entity type name across mineflayer versions (mobs expose `name`, e.g. "zombie"). */
+function entityName(e) {
+  return e?.name ?? e?.mobType ?? e?.displayName ?? null;
+}
+
+/** Race a promise against a timeout that rejects with a labelled error; clears the timer either way. */
+function withTimeout(promise, ms, label) {
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms);
+  });
+  return Promise.race([Promise.resolve(promise).finally(() => clearTimeout(timer)), timeout]);
+}
+
+/** Attack one entity until it's gone (killed) or a timeout; always stops pvp on the way out. */
+function huntOne(bot, target, timeoutMs) {
+  return new Promise((resolve, reject) => {
+    const targetId = target.id;
+    let settled = false;
+    const cleanup = () => {
+      clearTimeout(timer);
+      bot.removeListener('entityGone', onGone);
+      try { bot.pvp?.stop(); } catch { /* already stopped */ }
+    };
+    const onGone = (e) => {
+      if (settled || e?.id !== targetId) return;
+      settled = true; cleanup(); resolve();
+    };
+    const timer = setTimeout(() => {
+      if (settled) return;
+      settled = true; cleanup(); reject(new Error(`hunt of entity ${targetId} timed out after ${timeoutMs}ms`));
+    }, timeoutMs);
+    bot.on('entityGone', onGone);
+    Promise.resolve(bot.pvp.attack(target)).catch((err) => {
+      if (settled) return;
+      settled = true; cleanup(); reject(new Error(err?.message ?? String(err)));
+    });
+  });
+}
+
 /**
  * A recent-message ring buffer + the live bot handle, keyed by a registry id.
  * @param {object} deps
@@ -131,6 +171,60 @@ export function createBotRegistry({ createBot, goalNear, logCap = 200 } = {}) {
       });
       const p = b.bot.entity?.position ?? null;
       return { arrived: true, position: p ? { x: p.x, y: p.y, z: p.z } : null };
+    },
+
+    /**
+     * Gather (mine/chop/collect) blocks by name via mineflayer-collectblock — find the nearest
+     * matching block, path to it, auto-equip the best tool, mine, and collect the drop, `count`
+     * times. The bot's NATIVE `gather` capability; the goal engine delegates here.
+     */
+    async gather(id, { block, count = 1, maxDistance = 64, timeoutMs = 60_000 } = {}) {
+      const b = record(id);
+      if (!block) throw new Error('gather needs a block name');
+      if (!b.bot.collectBlock) throw new Error('collectBlock plugin is not loaded on this bot');
+      const type = b.bot.registry?.blocksByName?.[block];
+      if (!type) throw new Error(`unknown block '${block}'`);
+      const positions = [];
+      for (let i = 0; i < count; i++) {
+        const target = b.bot.findBlock({ matching: type.id, maxDistance });
+        if (!target) break; // no more of that block in range — report what we got
+        await withTimeout(b.bot.collectBlock.collect(target), timeoutMs, `gather ${block}`);
+        const p = target.position;
+        positions.push({ x: p.x, y: p.y, z: p.z });
+      }
+      return { block, requested: count, gathered: positions.length, positions };
+    },
+
+    /**
+     * Hunt (attack) mobs by name via mineflayer-pvp — optionally equip a weapon first, target the
+     * nearest matching entity within range, attack until it's gone (killed) or a timeout, then
+     * stop; `count` times. The bot's NATIVE `hunt` capability.
+     */
+    async hunt(id, { mob, count = 1, weapon = null, maxDistance = 32, timeoutMs = 30_000 } = {}) {
+      const b = record(id);
+      if (!mob) throw new Error('hunt needs a mob name');
+      if (!b.bot.pvp) throw new Error('pvp plugin is not loaded on this bot');
+      if (weapon) await this.equip(id, { item: weapon });
+      let killed = 0;
+      for (let i = 0; i < count; i++) {
+        const self = b.bot.entity?.position;
+        const target = b.bot.nearestEntity((e) => entityName(e) === mob
+          && (!self || !e.position || e.position.distanceTo(self) <= maxDistance));
+        if (!target) break; // none of that mob in range — report the kills so far
+        await huntOne(b.bot, target, timeoutMs);
+        killed += 1;
+      }
+      return { mob, requested: count, killed };
+    },
+
+    /** Equip an item/tool/weapon (by inventory name) to a destination (default the main hand). */
+    async equip(id, { item, destination = 'hand' } = {}) {
+      const b = record(id);
+      if (!item) throw new Error('equip needs an item name');
+      const found = (b.bot.inventory?.items?.() ?? []).find((it) => it.name === item);
+      if (!found) throw new Error(`no '${item}' in inventory to equip`);
+      await b.bot.equip(found, destination);
+      return { equipped: item, destination };
     },
 
     /** Inventory item list. */

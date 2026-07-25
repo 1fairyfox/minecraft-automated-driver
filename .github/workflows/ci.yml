@@ -234,6 +234,26 @@ jobs:
       - run: npm ci
       - run: node scripts/nav-smoke.mjs --force-java-download
 
+  # Real-machine proof of the gather + hunt GOALS (0.17.0): boot a local offline Paper server,
+  # join a real Mineflayer bot, register it as an executor, place an oak log and gather it
+  # (mineflayer-collectblock), then summon a mob and hunt it (mineflayer-pvp) — all through the
+  # backend-agnostic goal engine. No mocks.
+  combat-smoke:
+    name: Combat smoke (gather + hunt goals)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: node scripts/combat-smoke.mjs --force-java-download
+
   # Real-machine proof of MULTI-TARGET scenario orchestration (scenario_run): through the
   # actual MCP tool, provision a local offline Paper server AND a real Mineflayer bot together
   # in ONE scenario, run cross-target steps (server console + bot chat/status), and let the

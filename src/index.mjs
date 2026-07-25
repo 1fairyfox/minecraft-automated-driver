@@ -26,7 +26,7 @@ import { ensureJava } from './java.mjs';
 import { readHandshake, connectAgent } from './agent.mjs';
 import { createBotRegistry } from './bot.mjs';
 import { createTargetRegistry, agentExecutor, botExecutor } from './executors.mjs';
-import { navigate as navigateGoal } from './goals.mjs';
+import { navigate as navigateGoal, gather as gatherGoal, hunt as huntGoal } from './goals.mjs';
 import { menuNavigate, serverConnect, worldCreate, worldEnter, worldLeave, settingsSet, sliderRaw } from './flows.mjs';
 import { createClientManager } from './client.mjs';
 import { runScenario, validateScenario } from './scenario.mjs';
@@ -74,12 +74,17 @@ export async function createServer({
     const mf = await import('mineflayer');
     const { Vec3 } = await import('vec3');
     const pf = (await import('mineflayer-pathfinder')).default; // CommonJS default = module.exports
+    const { plugin: collectBlock } = await import('mineflayer-collectblock');
+    const { plugin: pvp } = await import('mineflayer-pvp');
     return createBotRegistry({
       createBot: (opts) => {
         const bot = mf.default.createBot(opts);
         bot.vec3 = (x, y, z) => new Vec3(x, y, z);
-        // Load the A* pathfinder so the bot's native `navigate` capability works.
+        // Load the plugins the bot's native capabilities delegate to: A* pathfinding (navigate),
+        // block collection (gather), and PvP (hunt). collectblock needs pathfinder loaded.
         bot.loadPlugin(pf.pathfinder);
+        bot.loadPlugin(collectBlock);
+        bot.loadPlugin(pvp);
         bot.once('spawn', () => bot.pathfinder.setMovements(new pf.Movements(bot)));
         return bot;
       },
@@ -706,6 +711,10 @@ export async function createServer({
     (reg, id, args) => reg.moveTo(id, args));
   botTool('bot_inventory', 'Bot inventory', 'List the items in the bot\'s inventory.', {},
     (reg, id) => reg.inventory(id));
+  botTool('bot_equip', 'Equip an item',
+    'Equip an item/tool/weapon by inventory name to a destination (hand/off-hand/head/torso/legs/feet; default hand).',
+    { item: z.string().min(1), destination: z.string().optional() },
+    (reg, id, { item, destination }) => reg.equip(id, { item, destination }));
   botTool('bot_quit', 'Disconnect a bot', 'Disconnect and forget a bot.', {},
     (reg, id) => { const r = reg.quit(id); targets.remove(id); return r; });
 
@@ -760,6 +769,57 @@ export async function createServer({
     async ({ targetId, x, y, z, range }) => {
       try {
         return text(await navigateGoal(targets.get(targetId), { x, y, z, range }));
+      } catch (err) {
+        return failure(err);
+      }
+    },
+  );
+
+  server.registerTool(
+    'goal_gather',
+    {
+      title: 'Gather blocks by name',
+      description:
+        'A goal-level intent: have a target (by targetId) gather (mine/chop/collect) blocks by ' +
+        'name — find the nearest matching block, path to it, auto-equip the best tool, mine it, and ' +
+        'collect the drop, `count` times. Native to the Mineflayer bot lane (mineflayer-collectblock); ' +
+        'a target without a `gather` capability is refused with a clear error.',
+      inputSchema: {
+        targetId: z.string().describe('A target id from targets_list'),
+        block: z.string().min(1).describe('Block name, e.g. oak_log, stone, iron_ore'),
+        count: z.number().int().positive().optional().describe('How many to gather (default 1)'),
+        maxDistance: z.number().int().positive().optional().describe('Search radius in blocks (default 64)'),
+      },
+    },
+    async ({ targetId, block, count, maxDistance }) => {
+      try {
+        return text(await gatherGoal(targets.get(targetId), { block, count, maxDistance }));
+      } catch (err) {
+        return failure(err);
+      }
+    },
+  );
+
+  server.registerTool(
+    'goal_hunt',
+    {
+      title: 'Hunt a mob by name',
+      description:
+        'A goal-level intent: have a target (by targetId) hunt (attack) mobs by name — optionally ' +
+        'equip a weapon, target the nearest matching mob in range, attack until it dies or a timeout, ' +
+        '`count` times. Native to the Mineflayer bot lane (mineflayer-pvp); a target without a `hunt` ' +
+        'capability is refused with a clear error.',
+      inputSchema: {
+        targetId: z.string().describe('A target id from targets_list'),
+        mob: z.string().min(1).describe('Mob name, e.g. zombie, skeleton, cow'),
+        count: z.number().int().positive().optional().describe('How many to kill (default 1)'),
+        weapon: z.string().optional().describe('Inventory item name to equip first, e.g. iron_sword'),
+        maxDistance: z.number().int().positive().optional().describe('Target search radius in blocks (default 32)'),
+      },
+    },
+    async ({ targetId, mob, count, weapon, maxDistance }) => {
+      try {
+        return text(await huntGoal(targets.get(targetId), { mob, count, weapon, maxDistance }));
       } catch (err) {
         return failure(err);
       }

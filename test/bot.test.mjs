@@ -149,6 +149,146 @@ test('navigate errors clearly without pathfinder, and surfaces a goto rejection'
   await assert.rejects(() => r2.navigate('b1', { x: 1, y: 1, z: 1 }), /NoPath/);
 });
 
+// ── gather / hunt / equip (native mineflayer-collectblock / -pvp) ──────────────
+
+test('gather collects the nearest matching block, count times, reporting what it got', async () => {
+  const collected = [];
+  const { registry, created } = reg({
+    make: (opts) => {
+      const b = fakeBot(opts);
+      let remaining = 2; // two logs available, then none
+      b.registry = { blocksByName: { oak_log: { id: 17 } } };
+      b.findBlock = () => (remaining > 0 ? { position: { x: remaining, y: 64, z: 0 } } : null);
+      b.collectBlock = { collect: async (blk) => { collected.push(blk.position.x); remaining -= 1; } };
+      return b;
+    },
+  });
+  const p = registry.join({ username: 'G' });
+  created[0].emit('spawn');
+  const { botId } = await p;
+
+  const res = await registry.gather(botId, { block: 'oak_log', count: 3 });
+  assert.equal(res.requested, 3);
+  assert.equal(res.gathered, 2); // only two were in range
+  assert.deepEqual(collected, [2, 1]);
+});
+
+test('gather errors without the plugin, on an unknown block, and on a missing name', async () => {
+  const { registry, created } = reg(); // fakeBot has no collectBlock
+  const p = registry.join({ username: 'G2' }); created[0].emit('spawn'); const { botId } = await p;
+  await assert.rejects(() => registry.gather(botId, { block: 'oak_log' }), /collectBlock plugin is not loaded/);
+
+  const { registry: r2, created: c2 } = reg({
+    make: (o) => { const b = fakeBot(o); b.collectBlock = { collect: async () => {} }; b.registry = { blocksByName: {} }; return b; },
+  });
+  const p2 = r2.join({ username: 'G3' }); c2[0].emit('spawn'); await p2;
+  await assert.rejects(() => r2.gather('b1', { block: 'nope' }), /unknown block/);
+  await assert.rejects(() => r2.gather('b1', {}), /needs a block name/);
+});
+
+test('gather surfaces a collect that hangs (timeout)', async () => {
+  const { registry, created } = reg({
+    make: (o) => {
+      const b = fakeBot(o);
+      b.registry = { blocksByName: { stone: { id: 1 } } };
+      b.findBlock = () => ({ position: { x: 1, y: 64, z: 0 } });
+      b.collectBlock = { collect: () => new Promise(() => {}) }; // never resolves
+      return b;
+    },
+  });
+  const p = registry.join({ username: 'GT' }); created[0].emit('spawn'); const { botId } = await p;
+  await assert.rejects(() => registry.gather(botId, { block: 'stone', timeoutMs: 20 }), /timed out/);
+});
+
+test('hunt equips a weapon, attacks the nearest matching mob, and resolves when it dies', async () => {
+  const events = [];
+  const { registry, created } = reg({
+    make: (opts) => {
+      const b = fakeBot(opts);
+      b.entity = { position: { x: 0, y: 64, z: 0, distanceTo: () => 3 } };
+      b.inventory = { items: () => [{ name: 'iron_sword', count: 1, slot: 0 }] };
+      b.equip = async (item, dest) => events.push(['equip', item.name, dest]);
+      b.nearestEntity = (match) => {
+        const e = { id: 42, name: 'zombie', position: { distanceTo: () => 3 } };
+        return match(e) ? e : null;
+      };
+      b.pvp = { attack: async (e) => events.push(['attack', e.id]), stop: () => events.push(['stop']) };
+      return b;
+    },
+  });
+  const p = registry.join({ username: 'H' }); created[0].emit('spawn'); const { botId } = await p;
+
+  const huntP = registry.hunt(botId, { mob: 'zombie', weapon: 'iron_sword' });
+  await new Promise((r) => setTimeout(r, 5));
+  created[0].emit('entityGone', { id: 99 }); // some other entity — ignored
+  created[0].emit('entityGone', { id: 42 }); // the target dies
+  const res = await huntP;
+  assert.equal(res.killed, 1);
+  assert.deepEqual(events, [['equip', 'iron_sword', 'hand'], ['attack', 42], ['stop']]);
+});
+
+test('hunt reports 0 kills when none in range, times out if the mob never dies, and needs pvp', async () => {
+  const { registry, created } = reg({
+    make: (o) => {
+      const b = fakeBot(o);
+      b.entity = { position: { x: 0, y: 64, z: 0, distanceTo: () => 0 } };
+      b.inventory = { items: () => [] };
+      b.nearestEntity = () => null;
+      b.pvp = { attack: async () => {}, stop: () => {} };
+      return b;
+    },
+  });
+  const p = registry.join({ username: 'H0' }); created[0].emit('spawn'); const { botId } = await p;
+  assert.deepEqual(await registry.hunt(botId, { mob: 'zombie' }), { mob: 'zombie', requested: 1, killed: 0 });
+
+  const stops = [];
+  const { registry: rt, created: ct } = reg({
+    make: (o) => {
+      const b = fakeBot(o);
+      b.entity = { position: { distanceTo: () => 1 } };
+      b.nearestEntity = (m) => { const e = { id: 7, name: 'zombie', position: { distanceTo: () => 1 } }; return m(e) ? e : null; };
+      b.pvp = { attack: async () => {}, stop: () => stops.push('stop') };
+      return b;
+    },
+  });
+  const pt = rt.join({ username: 'HT' }); ct[0].emit('spawn'); await pt;
+  await assert.rejects(() => rt.hunt('b1', { mob: 'zombie', timeoutMs: 20 }), /timed out/);
+  assert.deepEqual(stops, ['stop']); // pvp is stopped on the way out
+
+  const { registry: r2, created: c2 } = reg(); // fakeBot has no pvp
+  const p2 = r2.join({ username: 'H1' }); c2[0].emit('spawn'); await p2;
+  await assert.rejects(() => r2.hunt('b1', { mob: 'zombie' }), /pvp plugin is not loaded/);
+  await assert.rejects(() => r2.hunt('b1', {}), /needs a mob name/);
+});
+
+test('hunt surfaces a pvp.attack rejection (and stops pvp)', async () => {
+  const stops = [];
+  const { registry, created } = reg({
+    make: (o) => {
+      const b = fakeBot(o);
+      b.entity = { position: { distanceTo: () => 1 } };
+      b.nearestEntity = (m) => { const e = { id: 5, name: 'zombie', position: { distanceTo: () => 1 } }; return m(e) ? e : null; };
+      b.pvp = { attack: async () => { throw new Error('cannot reach'); }, stop: () => stops.push('stop') };
+      return b;
+    },
+  });
+  const p = registry.join({ username: 'HR' }); created[0].emit('spawn'); const { botId } = await p;
+  await assert.rejects(() => registry.hunt(botId, { mob: 'zombie' }), /cannot reach/);
+  assert.deepEqual(stops, ['stop']);
+});
+
+test('equip finds the item by name and equips it; errors when absent or unnamed', async () => {
+  const equips = [];
+  const { registry, created } = reg({
+    make: (o) => { const b = fakeBot(o); b.inventory = { items: () => [{ name: 'iron_pickaxe', count: 1, slot: 0 }] }; b.equip = async (item, dest) => equips.push([item.name, dest]); return b; },
+  });
+  const p = registry.join({ username: 'E' }); created[0].emit('spawn'); const { botId } = await p;
+  assert.deepEqual(await registry.equip(botId, { item: 'iron_pickaxe' }), { equipped: 'iron_pickaxe', destination: 'hand' });
+  assert.deepEqual(equips, [['iron_pickaxe', 'hand']]);
+  await assert.rejects(() => registry.equip(botId, { item: 'diamond_sword' }), /no 'diamond_sword' in inventory/);
+  await assert.rejects(() => registry.equip(botId, {}), /needs an item name/);
+});
+
 test('the message ring buffer is bounded', async () => {
   const { registry, created } = reg({ logCap: 3 });
   const p = registry.join({ username: 'R' });

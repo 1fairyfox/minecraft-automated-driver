@@ -59,3 +59,27 @@ export async function navigate(executor, { x, y, z, range = 1 }, { planFn = plan
     `target ${executor.id} cannot navigate: needs 'navigate', or 'world_snapshot'+position+look+move`,
   );
 }
+
+/**
+ * Gather (mine/chop/collect) blocks by name. Native-only for now — the Mineflayer bot lane
+ * satisfies it (mineflayer-collectblock); no primitive-composition path exists yet (the Fabric
+ * client agent has no block-find/mine ops), so a target without `gather` gets a CLEAR error, not
+ * glue — a missing capability to add later, per the anti-hack contract.
+ */
+export async function gather(executor, args = {}) {
+  if (!executor.has('gather')) {
+    throw new Error(`target ${executor.id} cannot gather: no 'gather' capability (the Mineflayer bot lane provides it via mineflayer-collectblock)`);
+  }
+  return { strategy: 'native', ...(await executor.invoke('gather', args)) };
+}
+
+/**
+ * Hunt (attack) mobs by name. Native-only for now — the Mineflayer bot lane satisfies it
+ * (mineflayer-pvp); same clean capability gate as gather (no composition path yet).
+ */
+export async function hunt(executor, args = {}) {
+  if (!executor.has('hunt')) {
+    throw new Error(`target ${executor.id} cannot hunt: no 'hunt' capability (the Mineflayer bot lane provides it via mineflayer-pvp)`);
+  }
+  return { strategy: 'native', ...(await executor.invoke('hunt', args)) };
+}
