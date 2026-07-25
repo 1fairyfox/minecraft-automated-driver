@@ -716,7 +716,7 @@ test('scenario_run provisions server+bot together, runs cross-target steps, and 
       name: 'srv+bot',
       actors: [
         { id: 'srv', kind: 'server', version: '1.21.11', port: 25610, plugins: ['x.jar'] },
-        { id: 'b1', kind: 'bot', port: 25610, username: 'ScenBot' },
+        { id: 'b1', kind: 'bot', port: 25610, username: 'ScenBot', allowRemote: true },
       ],
       steps: [
         { action: 'server_exec', actor: 'srv', command: 'say hello' },

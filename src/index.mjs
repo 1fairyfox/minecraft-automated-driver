@@ -668,6 +668,9 @@ export async function createServer({
         port: z.number().int().positive().optional().describe('Default 25565'),
         username: z.string().optional().describe('Default DriverBot'),
         timeoutMs: z.number().int().positive().optional(),
+        allowRemote: z.boolean().optional()
+          .describe('Opt in to a NON-loopback host. A bot parses that server\'s packets in-process, '
+            + 'so only enable for a server you trust (default: loopback-only). See SECURITY.md.'),
       },
     },
     async (args) => {
@@ -970,9 +973,10 @@ export async function createServer({
     // Join a headless Mineflayer bot and register it as an executor (targetId = its bot id).
     async bot(actor) {
       const registry = await getBots();
-      const { host = '127.0.0.1', port = 25565, username, timeoutMs } = actor;
+      const { host = '127.0.0.1', port = 25565, username, timeoutMs, allowRemote } = actor;
       const joined = await registry.join({
         host, port, ...(username ? { username } : {}), ...(timeoutMs ? { timeoutMs } : {}),
+        ...(allowRemote ? { allowRemote } : {}),
       });
       targets.add(botExecutor({ id: joined.botId, registry }));
       return {

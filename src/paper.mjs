@@ -4,7 +4,8 @@
 // `online-mode=false` is written for these loopback test servers ONLY — a deliberate,
 // documented exception (SECURITY.md); never suggest it for anything public-facing.
 import { createWriteStream } from 'node:fs';
-import { copyFile, mkdir, writeFile } from 'node:fs/promises';
+import { copyFile, mkdir, rm, writeFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
 import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { basename, join } from 'node:path';
@@ -20,9 +21,12 @@ export async function resolvePaperDownload(version, { fetchImpl = fetch } = {}) 
   });
   if (!response.ok) throw new Error(`fill.papermc.io: HTTP ${response.status} for Paper ${version}`);
   const build = await response.json();
-  const url = build.downloads?.['server:default']?.url;
+  const download = build.downloads?.['server:default'];
+  const url = download?.url;
   if (!url) throw new Error(`no server:default download in Paper ${version} build ${build.id ?? '?'}`);
-  return { url, build: build.id ?? null, channel: build.channel ?? null };
+  // The fill API publishes a sha256 per artifact — carry it so provisionServer can verify the
+  // downloaded bytes (supply-chain integrity). null when a future API omits it (verified skipped).
+  return { url, build: build.id ?? null, channel: build.channel ?? null, sha256: download.checksums?.sha256 ?? null };
 }
 
 /**
@@ -32,7 +36,7 @@ export async function resolvePaperDownload(version, { fetchImpl = fetch } = {}) 
 export async function provisionServer({
   version, dir, port = 25565, fetchImpl = fetch, log = () => {},
 }) {
-  const { url, build, channel } = await resolvePaperDownload(version, { fetchImpl });
+  const { url, build, channel, sha256 } = await resolvePaperDownload(version, { fetchImpl });
   log(`paper ${version}: build ${build} (${channel}) → downloading`);
   // Restrictive modes: server dirs default under the shared OS tmpdir, so keep them
   // owner-only on POSIX (CodeQL js/insecure-temporary-file; no-op perms on Windows).
@@ -40,7 +44,25 @@ export async function provisionServer({
   const jarPath = join(dir, 'paper.jar');
   const response = await fetchImpl(url, { headers: { 'User-Agent': UA }, redirect: 'follow' });
   if (!response.ok) throw new Error(`paper download failed: HTTP ${response.status}`);
-  await pipeline(Readable.fromWeb(response.body), createWriteStream(jarPath, { mode: 0o600 }));
+  // Hash the bytes as they stream to disk (single pass), then verify against the publisher's
+  // sha256 — a supply-chain integrity gate. A mismatch fails CLOSED: delete the jar and refuse,
+  // so a tampered/corrupt download is never booted. (SECURITY.md / notes/security/threat-model.md.)
+  const hash = createHash('sha256');
+  await pipeline(
+    Readable.fromWeb(response.body),
+    async function* teeHash(source) { for await (const chunk of source) { hash.update(chunk); yield chunk; } },
+    createWriteStream(jarPath, { mode: 0o600 }),
+  );
+  if (sha256) {
+    const digest = hash.digest('hex');
+    if (digest !== sha256) {
+      await rm(jarPath, { force: true });
+      throw new Error(`paper ${version} jar failed its integrity check — refusing it (expected sha256 ${sha256}, got ${digest})`);
+    }
+    log(`paper ${version}: sha256 verified (${sha256.slice(0, 12)}…)`);
+  } else {
+    log(`paper ${version}: no published checksum — integrity check skipped`);
+  }
   await writeFile(join(dir, 'eula.txt'), 'eula=true\n', { mode: 0o600 });
   await writeFile(join(dir, 'server.properties'), [
     String.raw`level-type=minecraft\:flat`,

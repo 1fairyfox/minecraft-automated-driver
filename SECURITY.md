@@ -45,3 +45,27 @@ local test servers. Its security posture, by design:
 The relevant trust boundary is the operator of the machine: anyone who can already run
 processes as you can already do everything this tool can. The design goal is that the
 tool adds **no remotely reachable surface and no silently enabled surface**.
+
+### Inbound / untrusted content
+
+The points above answer *"can something off-machine reach in?"* — no. A second boundary
+matters too: **content the tool processes from a server, client, or download it connects to
+or fetches.** A hostile Minecraft server, a malicious plugin/mod, or a tampered artifact can
+hand crafted input to code we run, so connecting *out* is a trust decision, not a free action.
+The full surface-by-surface analysis is [`notes/security/threat-model.md`](notes/security/threat-model.md);
+the load-bearing points:
+
+- **A protocol bot parses the server's packets in the driver's own process.** So `bot_join`
+  (and the scenario `bot` actor) **refuse a non-loopback host by default** — reaching a remote
+  server takes an explicit `allowRemote: true`, for a server you trust. The in-process parser is
+  never aimed at an untrusted remote by accident.
+- **Downloaded Paper server jars are SHA-256 verified** against PaperMC's published checksum as
+  they stream to disk; a mismatch **fails closed** (the jar is deleted, provisioning throws), so a
+  tampered or corrupt jar is never booted.
+- **Do not run the agent-enabled client against untrusted servers**, and **only load the agent
+  beside plugins/mods you trust** — co-resident code in the same JVM can read the loopback token.
+  The agent stays disabled by default and reflection writes stay off + per-session-granted.
+- **`build_gradle` runs the target checkout's build code as you** (that is what a build tool does)
+  — only point it at repositories you trust. Likewise, **deploy only plugin jars you trust.**
+
+The operator's short "brace list" lives at the end of the threat-model document.

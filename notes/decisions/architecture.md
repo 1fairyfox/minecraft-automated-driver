@@ -2,6 +2,20 @@
 
 Newest on top. Each: decision → why → revisit-when.
 
+## 2026-07-25 — Inbound untrusted content is a first-class trust boundary
+Owner flagged (2026-07-25) that a malicious server/client/plugin, or a tampered download, can
+feed crafted input to code we run — a boundary independent of the already-covered listener/
+enablement surface. Decision: treat inbound content as its own boundary and harden the two places
+the tool can *silently* process untrusted input. `bot_join` (and the scenario `bot` actor) refuse
+a non-loopback host unless `allowRemote` — a Mineflayer bot parses the server's packets IN the
+driver process, so an untrusted remote must never be aimed at the in-process parser by accident.
+Paper jar downloads are SHA-256-verified against PaperMC's published checksum and **fail closed**
+(delete + throw). `build_gradle` (runs the checkout's own build code) and agent co-residency
+(same-JVM code can read the loopback token) stay *trust-of-the-source* decisions the operator
+makes, documented rather than something code can neutralize. Full surface analysis + brace list:
+`notes/security/threat-model.md`. Revisit: child-process isolation for the L2 bot lane (exploit/
+crash containment) when it's worth the complexity.
+
 ## 2026-07-24 — Semantic convenience verbs live MCP-side (flows.mjs), composing agent primitives
 Owner directive (mandate 2026-07-24): "few semantic verbs" for multi-step client tasks —
 world lifecycle, direct-connect, menu navigation, settings. Built as an MCP-side flow
