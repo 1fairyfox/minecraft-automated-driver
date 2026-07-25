@@ -13,7 +13,8 @@ export function yawTo(from, to) {
   const dx = to.x - from.x;
   const dz = to.z - from.z;
   // MC yaw: 0 = +Z (south), increasing clockwise; atan2(-dx, dz) gives that convention.
-  return (Math.atan2(-dx, dz) * 180) / Math.PI;
+  // `+ 0` normalises the -0 that atan2(-0, +z) yields, so callers never see negative zero.
+  return (Math.atan2(-dx, dz) * 180) / Math.PI + 0;
 }
 
 /** Walk an executor along a waypoint list using its `look` + `move` primitives. */
