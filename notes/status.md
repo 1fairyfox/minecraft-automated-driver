@@ -1,6 +1,6 @@
 # Status — Minecraft Automated Driver
 
-**Updated:** 2026-07-24 · **Version:** 0.11.0 · **Phase:** goal-level autonomy — capability seam (0.10.0) + universal navigation goal (0.11.0) shipped; next: multi-target scenarios (0.12.0)
+**Updated:** 2026-07-24 · **Version:** 0.12.0 · **Phase:** goal-level autonomy — capability seam (0.10.0) + universal navigation goal (0.11.0) + semantic convenience verbs (0.12.0) shipped; next: agent ops for world_select/slider (0.13.0), then multi-target scenarios
 
 ## What this is
 
@@ -54,9 +54,17 @@ behind one tool surface. **Founding plan: `plans/roadmap-2026-07.md` — read it
   server). `goal_navigate` works for any target advertising `navigate`, or `world_snapshot`+
   position+look+move — the planned/A\* path awaits a real `world_snapshot` provider (a later
   executor capability; already unit-tested).
-- **Next — multi-target scenarios (0.12.0)**: `scenario_run` provisioning + coordinating a
-  server + client + bots together with teardown. Then gather/combat (0.13.0), craft/build
-  (0.14.0). Plan `plans/goal-level-autonomy-2026-07.md`.
+- **Semantic convenience verbs are live (0.12.0)**: `src/flows.mjs` — an MCP-side flow engine
+  (sibling to `goals.mjs`) composing the client agent's `screen`/`click`/`type`/`key`/`close`/
+  `position` primitives into few-word intents: `ui_menu_navigate`, `ui_server_connect`,
+  `ui_world_create`, `ui_world_enter`, `ui_world_leave`, `ui_settings_set`. Backend-agnostic
+  (plans over advertised capabilities), unit-tested against fake widget trees + a protocol test
+  over the in-memory MCP client. Owner mandate 2026-07-24; plan `plans/semantic-verbs-2026-07.md`.
+- **Next — agent ops for the remaining verbs (0.13.0)**: Fabric `world_select` (open a saved
+  world by name from the list) + a slider-set op, wiring `ui_world_enter` (existing worlds) and
+  numeric `ui_settings_set`; a real-client `flows-smoke` (XVFB) to confirm the English label
+  assumptions. Then multi-target scenarios (`scenario_run`), gather/combat, craft/build.
+  Plans `plans/semantic-verbs-2026-07.md` + `plans/goal-level-autonomy-2026-07.md`.
 - **Phase 3 / L3 Paper agent live** since 0.4.0: control-protocol spec + Kotlin Paper
   agent (state/exec/events), disabled-by-default, real e2e smoke.
 - **Phase 2 / L1 live** since 0.3.0: gradle driver, job model, Paper provision/boot/

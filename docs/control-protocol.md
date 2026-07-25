@@ -90,6 +90,14 @@ already has A\* pathfinding, PvP, block-collection and tooling), with the L3 cli
 staying the semantic UI/player-input surface. **Reflection writes will require an explicit
 per-session grant op** — recorded here so no implementation forgets it.
 
+> Note (0.12.0): the driver builds **semantic convenience verbs** (connect-by-address, world
+> create/enter/leave, menu navigation, settings changes) by *composing* the ops above
+> MCP-side (`src/flows.mjs`) — they are NOT new agent ops and do not touch this wire protocol.
+> Two verbs need genuinely new ops the primitives can't express cleanly — `world_select` (pick
+> a saved world from the list) and a slider set — which arrive as new `op`s + capability
+> strings in a later phase, per the anti-hack rule (a missing capability is added, never glued
+> around).
+
 ## Threading rules (agent side)
 
 Socket I/O runs on daemon threads; anything touching game state is marshalled to

@@ -211,6 +211,50 @@ test('goal_navigate dispatches through the goal engine to a target\'s native pat
   await close();
 });
 
+test('ui_* convenience verbs dispatch through the flow engine over the capability seam', async () => {
+  const reg = fakeBotRegistry();
+  // A fabric agent whose screen always offers Options + a Sound toggle already ON, so the menu
+  // and settings verbs complete without polling (deep behaviour is unit-tested in flows.test.mjs).
+  const fabric = {
+    welcome: { agent: 'fabric', capabilities: ['screen', 'click', 'key', 'screenshot', 'position', 'look', 'move', 'type', 'slots', 'close'], events: [] },
+    request: async (op, params = {}) => {
+      if (op === 'screen') return { tree: JSON.stringify({ screen: 'Menu', widgets: [{ label: 'Options' }, { label: 'Sound: ON' }, { label: 'Multiplayer' }] }) };
+      if (op === 'click') return { clicked: true };
+      if (op === 'type') return { typed: true, text: params.text };
+      if (op === 'position') return { inWorld: false };
+      if (op === 'close') return { closed: true };
+      throw new Error(`unknown op ${op}`);
+    },
+    events: () => [], close: () => {},
+  };
+  const { client, close } = await connected({
+    l1: { botRegistry: reg, agentHandshake: async () => ({ v: 1, port: 6000, token: 'ftok' }), agentConnect: async () => fabric },
+  });
+  await client.callTool({ name: 'bot_join', arguments: { username: 'Nav' } });
+  const c = JSON.parse((await client.callTool({ name: 'agent_connect', arguments: { dir: 'C:/client', kind: 'fabric' } })).content[0].text);
+
+  // Success: menu navigation + a settings change, dispatched to the client-agent executor.
+  const nav = JSON.parse((await client.callTool({ name: 'ui_menu_navigate', arguments: { targetId: c.connectionId, path: ['Options'] } })).content[0].text);
+  assert.deepEqual(nav.clicked, ['Options']);
+  const set = JSON.parse((await client.callTool({ name: 'ui_settings_set', arguments: { targetId: c.connectionId, control: 'Sound', value: true } })).content[0].text);
+  assert.equal(set.to, true);
+  assert.equal(set.control, 'Sound: ON');
+
+  // The world/connection verbs cleanly refuse a target lacking the UI capabilities (the bot) —
+  // proving the capability-gated dispatch: a tool error, never a crash.
+  for (const [name, args] of [
+    ['ui_server_connect', { targetId: 'b1', address: 'localhost' }],
+    ['ui_world_create', { targetId: 'b1', name: 'W' }],
+    ['ui_world_enter', { targetId: 'b1', name: 'W' }],
+    ['ui_world_leave', { targetId: 'b1' }],
+  ]) {
+    const res = await client.callTool({ name, arguments: args });
+    assert.equal(res.isError, true, `${name} should refuse the bot`);
+    assert.match(res.content[0].text, /missing capability/);
+  }
+  await close();
+});
+
 test('bot tools surface errors (unknown bot, join failure)', async () => {
   const { client, close } = await connected({
     l1: { botRegistry: { ...fakeBotRegistry(), join: async () => { throw new Error('bot join timed out'); } } },

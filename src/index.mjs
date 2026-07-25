@@ -27,6 +27,7 @@ import { readHandshake, connectAgent } from './agent.mjs';
 import { createBotRegistry } from './bot.mjs';
 import { createTargetRegistry, agentExecutor, botExecutor } from './executors.mjs';
 import { navigate as navigateGoal } from './goals.mjs';
+import { menuNavigate, serverConnect, worldCreate, worldEnter, worldLeave, settingsSet } from './flows.mjs';
 import { createClientManager } from './client.mjs';
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
@@ -755,6 +756,156 @@ export async function createServer({
     async ({ targetId, x, y, z, range }) => {
       try {
         return text(await navigateGoal(targets.get(targetId), { x, y, z, range }));
+      } catch (err) {
+        return failure(err);
+      }
+    },
+  );
+
+  // ── Orchestration: semantic convenience verbs (notes/plans/semantic-verbs-2026-07.md) ──
+  // Each is one high-level intent that the flow engine expands into the many UI steps, planned
+  // over the target's ADVERTISED capabilities (screen/click/type/key/close/position) — so it
+  // works against any executor that advertises them, never a hard-coded backend.
+
+  const labelsSchema = z.record(z.string()).optional()
+    .describe('Override UI button labels (e.g. {"join":"Join Server"}) for i18n / version drift');
+
+  server.registerTool(
+    'ui_menu_navigate',
+    {
+      title: 'Navigate menus by name',
+      description:
+        'Open/close/traverse a target\'s menus by clicking a sequence of button labels — one ' +
+        'call for a whole menu path. Waits for each button to appear; `expect` optionally waits ' +
+        'for a landmark widget to confirm arrival. Any target advertising screen+click.',
+      inputSchema: {
+        targetId: z.string().describe('A target id from targets_list'),
+        path: z.array(z.string().min(1)).min(1).describe('Button labels to click, in order'),
+        expect: z.string().optional().describe('A landmark widget label to confirm the destination'),
+      },
+    },
+    async ({ targetId, path, expect }) => {
+      try {
+        return text(await menuNavigate(targets.get(targetId), { path, expect }));
+      } catch (err) {
+        return failure(err);
+      }
+    },
+  );
+
+  server.registerTool(
+    'ui_server_connect',
+    {
+      title: 'Connect to a server by address',
+      description:
+        'One intent → Multiplayer → Direct Connection → type the address → Join Server, then ' +
+        'wait until the player is actually in the world. Any target advertising ' +
+        'screen+click+type+position (e.g. a Fabric client agent).',
+      inputSchema: {
+        targetId: z.string(),
+        address: z.string().min(1).describe('Server address, e.g. 127.0.0.1 or host:port'),
+        labels: labelsSchema,
+      },
+    },
+    async ({ targetId, address, labels }) => {
+      try {
+        return text(await serverConnect(targets.get(targetId), { address, labels: labels ?? {} }));
+      } catch (err) {
+        return failure(err);
+      }
+    },
+  );
+
+  server.registerTool(
+    'ui_world_create',
+    {
+      title: 'Create and enter a world',
+      description:
+        'One intent → Singleplayer → Create New World → name it → (optional) set game mode → ' +
+        'Create New World, then wait until in-world. Any target advertising ' +
+        'screen+click+type+position.',
+      inputSchema: {
+        targetId: z.string(),
+        name: z.string().min(1).describe('World name'),
+        gameMode: z.string().optional().describe('e.g. Survival / Creative — cycles the button to match'),
+        labels: labelsSchema,
+      },
+    },
+    async ({ targetId, name, gameMode, labels }) => {
+      try {
+        return text(await worldCreate(targets.get(targetId), { name, gameMode, labels: labels ?? {} }));
+      } catch (err) {
+        return failure(err);
+      }
+    },
+  );
+
+  server.registerTool(
+    'ui_world_enter',
+    {
+      title: 'Enter an existing world by name',
+      description:
+        'Open a saved singleplayer world by name. Selecting a world-list entry needs the agent ' +
+        '`world_select` capability (arrives 0.13.0); until then use ui_world_create. Advertised ' +
+        'as a first-class verb so the forward path is explicit.',
+      inputSchema: {
+        targetId: z.string(),
+        name: z.string().min(1),
+        labels: labelsSchema,
+      },
+    },
+    async ({ targetId, name, labels }) => {
+      try {
+        return text(await worldEnter(targets.get(targetId), { name, labels: labels ?? {} }));
+      } catch (err) {
+        return failure(err);
+      }
+    },
+  );
+
+  server.registerTool(
+    'ui_world_leave',
+    {
+      title: 'Save and leave the world',
+      description:
+        'One intent → Escape to the pause menu → Save and Quit to Title, then wait until no ' +
+        'longer in-world. Override labels.quit with "Disconnect" for a multiplayer session. ' +
+        'Any target advertising screen+click+close+position.',
+      inputSchema: {
+        targetId: z.string(),
+        save: z.boolean().optional().describe('Records intent; vanilla singleplayer always saves (default true)'),
+        labels: labelsSchema,
+      },
+    },
+    async ({ targetId, save = true, labels }) => {
+      try {
+        return text(await worldLeave(targets.get(targetId), { save, labels: labels ?? {} }));
+      } catch (err) {
+        return failure(err);
+      }
+    },
+  );
+
+  server.registerTool(
+    'ui_settings_set',
+    {
+      title: 'Change a setting by name',
+      description:
+        'One intent → Options → (traverse sub-screens by `path`) → set a toggle/cycler control ' +
+        'to `value` → optional Done. Booleans map to ON/OFF; a cycler is clicked until it shows ' +
+        'the value. Numeric/slider controls need the agent slider op (0.13.0). screen+click.',
+      inputSchema: {
+        targetId: z.string(),
+        control: z.string().min(1).describe('The control\'s stable label, e.g. "Difficulty"'),
+        value: z.union([z.string(), z.boolean(), z.number()]).describe('Target value (bool→ON/OFF; string cycles)'),
+        path: z.array(z.string().min(1)).optional().describe('Options sub-screens to open first, e.g. ["Controls"]'),
+        back: z.boolean().optional().describe('Click Done after setting (default false)'),
+        labels: labelsSchema,
+      },
+    },
+    async ({ targetId, control, value, path = [], back = false, labels }) => {
+      try {
+        return text(await settingsSet(targets.get(targetId), { control, value, path, back, labels: labels ?? {} }));
       } catch (err) {
         return failure(err);
       }

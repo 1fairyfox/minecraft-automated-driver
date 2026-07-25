@@ -2,6 +2,25 @@
 
 Newest on top. Each: decision → why → revisit-when.
 
+## 2026-07-24 — Semantic convenience verbs live MCP-side (flows.mjs), composing agent primitives
+Owner directive (mandate 2026-07-24): "few semantic verbs" for multi-step client tasks —
+world lifecycle, direct-connect, menu navigation, settings. Built as an MCP-side flow
+engine (`src/flows.mjs`), a sibling to `goals.mjs`, that composes the Fabric client
+agent's existing `screen`/`click`/`type`/`key`/`close`/`position` capabilities. Reason
+it's not a library: there is no drop-in library for "drive THIS client's menus by name";
+the agent's own UI surface is the only correct source, so we reuse it rather than
+reinvent a UI. Backend-agnostic (plans over advertised capabilities, not a target type).
+Revisit if the agent grows richer native verbs that make some flows a single agent op.
+
+## 2026-07-24 — Keep the custom A\* (pathfind.mjs); adopt library-first as a standing rule
+Owner directive (same mandate): prefer existing libraries over from-scratch unless there's
+a good reason. Reconciliation: `navigate` already delegates to the native
+`mineflayer-pathfinder` library for bots; the custom A\* only runs as the composition
+fallback for a backend with no pathfinding library (the Fabric rendering client), making
+navigation universal — the recorded good reason. Decision: keep it; do not remove working,
+tested, justified code. New work reaches for a library first and records a reason before
+building from scratch. Revisit per-case as libraries appear for a given backend.
+
 ## 2026-07-23 — Control-plane transport: NDJSON over loopback TCP, not WebSocket
 The roadmap sketched WebSocket. At implementation the choice was NDJSON over a
 `127.0.0.1` TCP socket: both sides get it with zero dependencies (`java.net.ServerSocket`
