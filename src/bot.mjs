@@ -227,6 +227,55 @@ export function createBotRegistry({ createBot, goalNear, logCap = 200 } = {}) {
       return { equipped: item, destination };
     },
 
+    /**
+     * Craft an item by name, `count` times, from the bot's inventory — table-aware: a crafting
+     * table in reach unlocks 3x3 recipes, else only the 2x2 inventory grid. Core Mineflayer
+     * (`recipesFor`/`craft`); the bot's NATIVE `craft` capability.
+     */
+    async craft(id, { item, count = 1 } = {}) {
+      const b = record(id);
+      if (!item) throw new Error('craft needs an item name');
+      const itemType = b.bot.registry?.itemsByName?.[item];
+      if (!itemType) throw new Error(`unknown item '${item}'`);
+      const tableType = b.bot.registry?.blocksByName?.crafting_table;
+      const table = tableType ? b.bot.findBlock({ matching: tableType.id, maxDistance: 4 }) : null;
+      const recipes = b.bot.recipesFor(itemType.id, null, 1, table) ?? [];
+      if (recipes.length === 0) {
+        throw new Error(`no craftable recipe for '${item}'${table ? '' : ' (a crafting table may be needed — none in reach)'} — missing ingredients?`);
+      }
+      await b.bot.craft(recipes[0], count, table);
+      return { crafted: item, count, usedTable: Boolean(table) };
+    },
+
+    /**
+     * Place a block (by inventory name) at (x,y,z) — equip it, then place against the block below
+     * the target (top face). Core Mineflayer (`placeBlock`); the bot's NATIVE `place` capability.
+     */
+    async place(id, { block, x, y, z } = {}) {
+      const b = record(id);
+      if (!block) throw new Error('place needs a block name');
+      if ([x, y, z].some((n) => typeof n !== 'number')) throw new Error('place needs numeric x, y, z');
+      const item = (b.bot.inventory?.items?.() ?? []).find((it) => it.name === block);
+      if (!item) throw new Error(`no '${block}' in inventory to place`);
+      await b.bot.equip(item, 'hand');
+      const below = b.bot.blockAt(b.bot.vec3(x, y - 1, z));
+      if (!below || below.name === 'air') throw new Error(`nothing to place against below (${x},${y - 1},${z})`);
+      await b.bot.placeBlock(below, b.bot.vec3(0, 1, 0));
+      return { placed: block, position: { x, y, z } };
+    },
+
+    /** Build a small structure — place a list of `{block,x,y,z}` in order. Composes `place`. */
+    async build(id, { blocks = [] } = {}) {
+      record(id); // validate the bot exists up front
+      if (!Array.isArray(blocks) || blocks.length === 0) throw new Error('build needs a non-empty blocks list');
+      const placed = [];
+      for (const spec of blocks) {
+        await this.place(id, spec);
+        placed.push({ block: spec.block, x: spec.x, y: spec.y, z: spec.z });
+      }
+      return { placed: placed.length, blocks: placed };
+    },
+
     /** Inventory item list. */
     inventory(id) {
       const b = record(id);

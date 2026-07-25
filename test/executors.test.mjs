@@ -48,11 +48,14 @@ test('botExecutor maps canonical capabilities onto the bot registry', async () =
     gather: (id, args) => ({ gathered: args.count ?? 1, block: args.block }),
     hunt: (id, args) => ({ killed: args.count ?? 1, mob: args.mob }),
     equip: (id, args) => ({ equipped: args.item }),
+    craft: (id, args) => ({ crafted: args.item, count: args.count ?? 1 }),
+    place: (id, args) => ({ placed: args.block, position: { x: args.x, y: args.y, z: args.z } }),
+    build: (id, args) => ({ placed: args.blocks.length }),
   };
   const ex = botExecutor({ id: 'b1', registry });
   assert.equal(ex.kind, 'bot');
   assert.deepEqual([...ex.capabilities].sort(),
-    ['chat', 'equip', 'gather', 'hunt', 'inventory', 'messages', 'move', 'navigate', 'status']);
+    ['build', 'chat', 'craft', 'equip', 'gather', 'hunt', 'inventory', 'messages', 'move', 'navigate', 'place', 'status']);
 
   assert.deepEqual(await ex.invoke('status'), { id: 'b1', state: 'spawned' });
   assert.deepEqual(await ex.invoke('chat', { message: 'hi' }), { sent: 'hi' });
@@ -63,11 +66,14 @@ test('botExecutor maps canonical capabilities onto the bot registry', async () =
   assert.deepEqual(await ex.invoke('gather', { block: 'oak_log', count: 2 }), { gathered: 2, block: 'oak_log' });
   assert.deepEqual(await ex.invoke('hunt', { mob: 'zombie' }), { killed: 1, mob: 'zombie' });
   assert.deepEqual(await ex.invoke('equip', { item: 'iron_sword' }), { equipped: 'iron_sword' });
+  assert.deepEqual(await ex.invoke('craft', { item: 'crafting_table', count: 1 }), { crafted: 'crafting_table', count: 1 });
+  assert.deepEqual(await ex.invoke('place', { block: 'stone', x: 1, y: 2, z: 3 }), { placed: 'stone', position: { x: 1, y: 2, z: 3 } });
+  assert.deepEqual(await ex.invoke('build', { blocks: [{ block: 'stone', x: 0, y: 0, z: 0 }] }), { placed: 1 });
 });
 
 test('botExecutor refuses an unknown capability and validates inputs', async () => {
   const ex = botExecutor({ id: 'b1', registry: { status: () => ({}) } });
-  await assert.rejects(() => ex.invoke('craft'), /no capability 'craft'/);
+  await assert.rejects(() => ex.invoke('screen'), /no capability 'screen'/); // 'screen' is a client-agent cap, not a bot's
   assert.throws(() => botExecutor({ id: 'b1', registry: {} }), /needs the bot registry/);
 });
 

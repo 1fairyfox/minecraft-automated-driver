@@ -1,6 +1,6 @@
 # Status — Minecraft Automated Driver
 
-**Updated:** 2026-07-25 · **Version:** 0.17.0 · **Phase:** goal-level autonomy — capability seam (0.10.0) → multi-target scenarios (0.15.0) → **gather/hunt goals (0.17.0)** shipped; security hardening for inbound/untrusted content (0.16.0) shipped; next: craft + build/place goals
+**Updated:** 2026-07-25 · **Version:** 0.18.0 · **Phase:** goal-level autonomy **COMPLETE** — capability seam (0.10.0) → navigation (0.11.0) → scenarios (0.15.0) → gather/hunt (0.17.0) → **craft/place/build (0.18.0)**; security hardening for inbound/untrusted content (0.16.0) shipped; next: roadmap Phase 6 (the reflection gateway)
 
 ## What this is
 
@@ -92,9 +92,17 @@ behind one tool surface. **Founding plan: `plans/roadmap-2026-07.md` — read it
   cleanly (no composition path yet — anti-hack gate). Tools `goal_gather`/`goal_hunt`/`bot_equip`; also
   reachable in scenarios via `invoke`. Two pinned, audit-clean deps. Real `combat-smoke` (+ CI): boot a
   real server, gather a placed oak_log into inventory, summon + kill a chicken — via the goal engine.
-- **Next — craft + build/place goals** (`plans/goal-level-autonomy-2026-07.md`): `craft` (recipe by
-  name/count, table-aware, e.g. mineflayer's `bot.recipesFor`/`craft`), `build`/`place`. Then roadmap
-  Phase 6 (the reflection gateway).
+- **Craft + place + build goals are live (0.18.0)** — the goal-level-autonomy plan is now COMPLETE:
+  bot registry `craft` (core recipesFor/craft, table-aware), `place` (core placeBlock, against the
+  block below), `build` (place a list); capabilities + `src/goals.mjs` goals (delegate or refuse
+  cleanly). Tools `goal_craft`/`goal_place`/`goal_build`; reachable in scenarios via `invoke`. Core
+  Mineflayer — no new deps. Real `craft-smoke` (+ CI): craft a crafting_table, place a block, build a
+  stack — inventory deltas prove it, through the goal engine.
+- **Next — roadmap Phase 6 (the reflection gateway)** (`plans/roadmap-2026-07.md` §Phase 6): read
+  arbitrary live game state by path through a reflection/mixin gateway (reads session-gated); writes
+  allowlisted + opened per session. The last big security-sensitive piece (JVM-agent work) — the
+  inbound-content threat model + `docs/control-protocol.md`'s "reflection writes need a per-session
+  grant op" note govern it.
 - **Phase 3 / L3 Paper agent live** since 0.4.0: control-protocol spec + Kotlin Paper
   agent (state/exec/events), disabled-by-default, real e2e smoke.
 - **Phase 2 / L1 live** since 0.3.0: gradle driver, job model, Paper provision/boot/

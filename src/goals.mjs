@@ -81,3 +81,15 @@ export const gather = (executor, args = {}) =>
 /** Hunt (attack) mobs by name — delegates to the native `hunt` capability. */
 export const hunt = (executor, args = {}) =>
   nativeGoal(executor, { cap: 'hunt', lib: 'mineflayer-pvp', verb: 'hunt', args });
+
+/** Craft an item by name/count — delegates to the native `craft` capability (core Mineflayer). */
+export const craft = (executor, args = {}) =>
+  nativeGoal(executor, { cap: 'craft', lib: 'mineflayer (core)', verb: 'craft', args });
+
+/** Place a block by name at a position — delegates to the native `place` capability. */
+export const place = (executor, args = {}) =>
+  nativeGoal(executor, { cap: 'place', lib: 'mineflayer (core)', verb: 'place', args });
+
+/** Build a small structure (a list of placements) — delegates to the native `build` capability. */
+export const build = (executor, args = {}) =>
+  nativeGoal(executor, { cap: 'build', lib: 'mineflayer (core)', verb: 'build', args });

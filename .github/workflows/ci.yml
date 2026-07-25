@@ -254,6 +254,26 @@ jobs:
       - run: npm ci
       - run: node scripts/combat-smoke.mjs --force-java-download
 
+  # Real-machine proof of the craft + place + build GOALS (0.18.0): boot a local offline Paper
+  # server, join a real Mineflayer bot, give it planks and craft a crafting_table (core
+  # recipesFor/craft), then place a block and build a small stack (core placeBlock) — asserting
+  # the inventory deltas prove real crafting + placing. No mocks.
+  craft-smoke:
+    name: Craft smoke (craft + place + build goals)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: node scripts/craft-smoke.mjs --force-java-download
+
   # Real-machine proof of MULTI-TARGET scenario orchestration (scenario_run): through the
   # actual MCP tool, provision a local offline Paper server AND a real Mineflayer bot together
   # in ONE scenario, run cross-target steps (server console + bot chat/status), and let the
