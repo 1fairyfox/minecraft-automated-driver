@@ -71,7 +71,7 @@ export async function createServer({
   const botsFactory = l1.bots ?? (async () => {
     const mf = await import('mineflayer');
     const { Vec3 } = await import('vec3');
-    const pf = await import('mineflayer-pathfinder');
+    const pf = (await import('mineflayer-pathfinder')).default; // CommonJS default = module.exports
     return createBotRegistry({
       createBot: (opts) => {
         const bot = mf.default.createBot(opts);

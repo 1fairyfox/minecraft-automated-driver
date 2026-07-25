@@ -11,7 +11,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import mineflayer from 'mineflayer';
 import { Vec3 } from 'vec3';
-import { pathfinder, Movements, goals } from 'mineflayer-pathfinder';
+import pathfinderPkg from 'mineflayer-pathfinder'; // CommonJS — import the default, then destructure
+const { pathfinder, Movements, goals } = pathfinderPkg;
 import { createJobRegistry } from '../src/jobs.mjs';
 import { ensureJava } from '../src/java.mjs';
 import { createServerManager, provisionServer } from '../src/paper.mjs';
