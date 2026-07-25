@@ -90,6 +90,43 @@ test('moveTo faces the target, holds forward until close, then releases', async 
   assert.equal(created[0].controls.forward, false); // released at the end
 });
 
+test('navigate delegates to pathfinder.goto (native A*) and reports arrival', async () => {
+  const goals = [];
+  const { registry, created } = reg({
+    goalNear: (x, y, z, r) => ({ x, y, z, r }),
+    make: (opts) => {
+      const b = fakeBot(opts);
+      b.pathfinder = { goto: async (goal) => { goals.push(goal); b.entity.position = { x: goal.x, y: goal.y, z: goal.z }; } };
+      return b;
+    },
+  });
+  const p = registry.join({ username: 'Nav' });
+  created[0].emit('spawn');
+  const { botId } = await p;
+
+  const res = await registry.navigate(botId, { x: 10, y: 64, z: -3, range: 2 });
+  assert.equal(res.arrived, true);
+  assert.deepEqual(goals[0], { x: 10, y: 64, z: -3, r: 2 });
+  assert.deepEqual(res.position, { x: 10, y: 64, z: -3 });
+});
+
+test('navigate errors clearly without pathfinder, and surfaces a goto rejection', async () => {
+  const { registry, created } = reg(); // fakeBot has no pathfinder
+  const p = registry.join({ username: 'X' });
+  created[0].emit('spawn');
+  const { botId } = await p;
+  await assert.rejects(() => registry.navigate(botId, { x: 1, y: 1, z: 1 }), /pathfinder is not loaded/);
+
+  const { registry: r2, created: c2 } = reg({
+    goalNear: (x, y, z, r) => ({ x, y, z, r }),
+    make: (opts) => { const b = fakeBot(opts); b.pathfinder = { goto: () => Promise.reject(new Error('NoPath')) }; return b; },
+  });
+  const p2 = r2.join({ username: 'Y' });
+  c2[0].emit('spawn');
+  await p2;
+  await assert.rejects(() => r2.navigate('b1', { x: 1, y: 1, z: 1 }), /NoPath/);
+});
+
 test('the message ring buffer is bounded', async () => {
   const { registry, created } = reg({ logCap: 3 });
   const p = registry.join({ username: 'R' });

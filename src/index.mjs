@@ -26,6 +26,7 @@ import { ensureJava } from './java.mjs';
 import { readHandshake, connectAgent } from './agent.mjs';
 import { createBotRegistry } from './bot.mjs';
 import { createTargetRegistry, agentExecutor, botExecutor } from './executors.mjs';
+import { navigate as navigateGoal } from './goals.mjs';
 import { createClientManager } from './client.mjs';
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
@@ -70,12 +71,17 @@ export async function createServer({
   const botsFactory = l1.bots ?? (async () => {
     const mf = await import('mineflayer');
     const { Vec3 } = await import('vec3');
+    const pf = await import('mineflayer-pathfinder');
     return createBotRegistry({
       createBot: (opts) => {
         const bot = mf.default.createBot(opts);
         bot.vec3 = (x, y, z) => new Vec3(x, y, z);
+        // Load the A* pathfinder so the bot's native `navigate` capability works.
+        bot.loadPlugin(pf.pathfinder);
+        bot.once('spawn', () => bot.pathfinder.setMovements(new pf.Movements(bot)));
         return bot;
       },
+      goalNear: (x, y, z, range) => new pf.goals.GoalNear(x, y, z, range),
     });
   });
   let bots = l1.botRegistry ?? null;
@@ -725,6 +731,30 @@ export async function createServer({
     async () => {
       try {
         return text(targets.list());
+      } catch (err) {
+        return failure(err);
+      }
+    },
+  );
+
+  server.registerTool(
+    'goal_navigate',
+    {
+      title: 'Navigate a target to a position',
+      description:
+        'A goal-level intent: get a target (by targetId from targets_list) to (x,y,z) — one ' +
+        'call, many steps. The engine picks a strategy from the target\'s advertised ' +
+        'capabilities: a native pathfinder (Mineflayer bots) if present, else an MCP-side A* ' +
+        'over the target\'s world snapshot walked with its move/look primitives.',
+      inputSchema: {
+        targetId: z.string().describe('A target id from targets_list'),
+        x: z.number(), y: z.number(), z: z.number(),
+        range: z.number().int().min(0).optional().describe('Accept any block within this range (default 1)'),
+      },
+    },
+    async ({ targetId, x, y, z, range }) => {
+      try {
+        return text(await navigateGoal(targets.get(targetId), { x, y, z, range }));
       } catch (err) {
         return failure(err);
       }

@@ -40,6 +40,8 @@ function botCapabilityMap(registry, id) {
     messages: (args = {}) => registry.messages(id, args),
     inventory: () => registry.inventory(id),
     move: ({ x, y, z, timeoutMs } = {}) => registry.moveTo(id, { x, y, z, timeoutMs }),
+    // Native A* pathfinding (mineflayer-pathfinder) — the goal engine prefers this.
+    navigate: ({ x, y, z, range, timeoutMs } = {}) => registry.navigate(id, { x, y, z, range, timeoutMs }),
   };
 }
 

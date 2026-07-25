@@ -97,6 +97,7 @@ function fakeBotRegistry() {
     chat: (id, m) => ({ sent: m }),
     messages: (id) => ({ id, lines: [{ text: 'hi', at: 'now' }] }),
     moveTo: async (id, a) => ({ arrived: true, position: { x: a.x, y: a.y, z: a.z } }),
+    navigate: async (id, a) => ({ arrived: true, position: { x: a.x, y: a.y, z: a.z } }),
     inventory: (id) => ({ id, items: [{ name: 'dirt', count: 1, slot: 0 }] }),
     list: () => [{ id: 'b1', username: 'DriverBot', state: 'spawned' }],
     quit: (id) => { if (id === 'b9') throw new Error(`no bot ${id}`); return { quit: id }; },
@@ -188,6 +189,25 @@ test('targets_list shows bots and agents as uniform executors, and drops them on
   await client.callTool({ name: 'bot_quit', arguments: { botId: 'b1' } });
   await client.callTool({ name: 'agent_disconnect', arguments: { connectionId: c.connectionId } });
   assert.deepEqual(JSON.parse((await client.callTool({ name: 'targets_list', arguments: {} })).content[0].text), []);
+  await close();
+});
+
+test('goal_navigate dispatches through the goal engine to a target\'s native pathfinder', async () => {
+  const reg = fakeBotRegistry();
+  const { client, close } = await connected({ l1: { botRegistry: reg } });
+  await client.callTool({ name: 'bot_join', arguments: { username: 'Nav' } });
+
+  const res = JSON.parse((await client.callTool({
+    name: 'goal_navigate', arguments: { targetId: 'b1', x: 12, y: 64, z: -5, range: 2 },
+  })).content[0].text);
+  assert.equal(res.strategy, 'native');       // the bot advertises `navigate` → native pathfinder
+  assert.equal(res.arrived, true);
+  assert.deepEqual(res.position, { x: 12, y: 64, z: -5 });
+
+  // Unknown target → a clean tool error, not a crash.
+  const missing = await client.callTool({ name: 'goal_navigate', arguments: { targetId: 'zzz', x: 0, y: 0, z: 0 } });
+  assert.equal(missing.isError, true);
+  assert.match(missing.content[0].text, /no target zzz/);
   await close();
 });
 

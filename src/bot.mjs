@@ -4,8 +4,13 @@
 // The mineflayer factory is injected so the registry logic is unit-testable without a real
 // server; the real thing is exercised by scripts/bot-smoke.mjs (local + CI).
 
-/** A recent-message ring buffer + the live bot handle, keyed by a registry id. */
-export function createBotRegistry({ createBot, logCap = 200 } = {}) {
+/**
+ * A recent-message ring buffer + the live bot handle, keyed by a registry id.
+ * @param {object} deps
+ * @param {(opts)=>object} deps.createBot  mineflayer factory (injected for tests)
+ * @param {(x,y,z,range)=>object} [deps.goalNear]  builds a pathfinder GoalNear (injected)
+ */
+export function createBotRegistry({ createBot, goalNear, logCap = 200 } = {}) {
   if (typeof createBot !== 'function') {
     throw new Error('createBotRegistry needs a { createBot } mineflayer factory');
   }
@@ -89,6 +94,24 @@ export function createBotRegistry({ createBot, logCap = 200 } = {}) {
       }
       const p = b.bot.entity?.position ?? null;
       return { arrived: p ? Math.hypot(p.x - x, p.z - z) < 1.5 : false, position: p ? { x: p.x, y: p.y, z: p.z } : null };
+    },
+
+    /**
+     * A*-navigate to a block via mineflayer-pathfinder (real walk/jump/parkour). This is the
+     * bot's NATIVE `navigate` capability; the goal engine delegates to it. Resolves on arrival,
+     * rejects on no-path/timeout.
+     */
+    async navigate(id, { x, y, z, range = 1, timeoutMs = 60_000 }) {
+      const b = record(id);
+      if (!b.bot.pathfinder) throw new Error('pathfinder is not loaded on this bot');
+      if (typeof goalNear !== 'function') throw new Error('bot registry has no goalNear factory');
+      const goto = b.bot.pathfinder.goto(goalNear(x, y, z, range));
+      await new Promise((resolve, reject) => {
+        const timer = setTimeout(() => reject(new Error(`navigate to ${x},${y},${z} timed out`)), timeoutMs);
+        goto.then(() => { clearTimeout(timer); resolve(); }, (err) => { clearTimeout(timer); reject(new Error(err?.message ?? String(err))); });
+      });
+      const p = b.bot.entity?.position ?? null;
+      return { arrived: true, position: p ? { x: p.x, y: p.y, z: p.z } : null };
     },
 
     /** Inventory item list. */

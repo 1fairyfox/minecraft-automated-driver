@@ -48,7 +48,7 @@ test('botExecutor maps canonical capabilities onto the bot registry', async () =
   };
   const ex = botExecutor({ id: 'b1', registry });
   assert.equal(ex.kind, 'bot');
-  assert.deepEqual([...ex.capabilities].sort(), ['chat', 'inventory', 'messages', 'move', 'status']);
+  assert.deepEqual([...ex.capabilities].sort(), ['chat', 'inventory', 'messages', 'move', 'navigate', 'status']);
 
   assert.deepEqual(await ex.invoke('status'), { id: 'b1', state: 'spawned' });
   assert.deepEqual(await ex.invoke('chat', { message: 'hi' }), { sent: 'hi' });

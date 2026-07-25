@@ -1,6 +1,6 @@
 # Status — Minecraft Automated Driver
 
-**Updated:** 2026-07-24 · **Version:** 0.10.0 · **Phase:** goal-level autonomy — the MCP-side capability/executor seam shipped (v0.10.0); next: the universal navigation goal (0.11.0)
+**Updated:** 2026-07-24 · **Version:** 0.11.0 · **Phase:** goal-level autonomy — capability seam (0.10.0) + universal navigation goal (0.11.0) shipped; next: multi-target scenarios (0.12.0)
 
 ## What this is
 
@@ -48,10 +48,15 @@ behind one tool surface. **Founding plan: `plans/roadmap-2026-07.md` — read it
   registry finds executors *by capability*; `targets_list` shows them all. This is the
   **MCP-side, backend-agnostic** foundation the owner directed (Esc. 12) — goals plan over
   capabilities, never a hard-coded backend.
-- **Next — the universal navigation goal (0.11.0)**: `goal_navigate` with a pure MCP-side A\*
-  planner over a world-snapshot capability; Mineflayer satisfies it natively (pathfinder),
-  composition proven against client-agent primitives. Then scenarios (0.12.0), gather/combat
-  (0.13.0), craft/build (0.14.0). Plan `plans/goal-level-autonomy-2026-07.md`.
+- **Universal navigation goal is live (0.11.0)**: `src/pathfind.mjs` (pure A\*), `src/goals.mjs`
+  (goal engine: native-or-planned), native bot pathfinding (mineflayer-pathfinder), the
+  `goal_navigate` tool, and a real `nav-smoke` (goal engine → executor → pathfinder → live
+  server). `goal_navigate` works for any target advertising `navigate`, or `world_snapshot`+
+  position+look+move — the planned/A\* path awaits a real `world_snapshot` provider (a later
+  executor capability; already unit-tested).
+- **Next — multi-target scenarios (0.12.0)**: `scenario_run` provisioning + coordinating a
+  server + client + bots together with teardown. Then gather/combat (0.13.0), craft/build
+  (0.14.0). Plan `plans/goal-level-autonomy-2026-07.md`.
 - **Phase 3 / L3 Paper agent live** since 0.4.0: control-protocol spec + Kotlin Paper
   agent (state/exec/events), disabled-by-default, real e2e smoke.
 - **Phase 2 / L1 live** since 0.3.0: gradle driver, job model, Paper provision/boot/
