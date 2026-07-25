@@ -61,25 +61,23 @@ export async function navigate(executor, { x, y, z, range = 1 }, { planFn = plan
 }
 
 /**
- * Gather (mine/chop/collect) blocks by name. Native-only for now — the Mineflayer bot lane
- * satisfies it (mineflayer-collectblock); no primitive-composition path exists yet (the Fabric
- * client agent has no block-find/mine ops), so a target without `gather` gets a CLEAR error, not
- * glue — a missing capability to add later, per the anti-hack contract.
+ * Delegate a goal to a target's NATIVE capability, or refuse with a clear error when it isn't
+ * advertised. Native-only for now — the Mineflayer bot lane satisfies gather/hunt (collectblock/
+ * pvp); no primitive-composition path exists yet (the Fabric client agent has no block-find/mine/
+ * attack ops), so a missing capability is NAMED, not glued — the anti-hack contract. One shared
+ * body so gather and hunt don't drift (or duplicate).
  */
-export async function gather(executor, args = {}) {
-  if (!executor.has('gather')) {
-    throw new Error(`target ${executor.id} cannot gather: no 'gather' capability (the Mineflayer bot lane provides it via mineflayer-collectblock)`);
+async function nativeGoal(executor, { cap, lib, verb, args }) {
+  if (!executor.has(cap)) {
+    throw new Error(`target ${executor.id} cannot ${verb}: no '${cap}' capability (the Mineflayer bot lane provides it via ${lib})`);
   }
-  return { strategy: 'native', ...(await executor.invoke('gather', args)) };
+  return { strategy: 'native', ...(await executor.invoke(cap, args)) };
 }
 
-/**
- * Hunt (attack) mobs by name. Native-only for now — the Mineflayer bot lane satisfies it
- * (mineflayer-pvp); same clean capability gate as gather (no composition path yet).
- */
-export async function hunt(executor, args = {}) {
-  if (!executor.has('hunt')) {
-    throw new Error(`target ${executor.id} cannot hunt: no 'hunt' capability (the Mineflayer bot lane provides it via mineflayer-pvp)`);
-  }
-  return { strategy: 'native', ...(await executor.invoke('hunt', args)) };
-}
+/** Gather (mine/chop/collect) blocks by name — delegates to the native `gather` capability. */
+export const gather = (executor, args = {}) =>
+  nativeGoal(executor, { cap: 'gather', lib: 'mineflayer-collectblock', verb: 'gather', args });
+
+/** Hunt (attack) mobs by name — delegates to the native `hunt` capability. */
+export const hunt = (executor, args = {}) =>
+  nativeGoal(executor, { cap: 'hunt', lib: 'mineflayer-pvp', verb: 'hunt', args });
