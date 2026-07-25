@@ -11,13 +11,14 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import mineflayer from 'mineflayer';
 import { Vec3 } from 'vec3';
-import { pathfinder, Movements, goals } from 'mineflayer-pathfinder';
+import pathfinderPkg from 'mineflayer-pathfinder'; // CommonJS — import the default, then destructure
+const { pathfinder, Movements, goals } = pathfinderPkg;
 import { createJobRegistry } from '../src/jobs.mjs';
-import { ensureJava } from '../src/java.mjs';
-import { createServerManager, provisionServer } from '../src/paper.mjs';
+import { createServerManager } from '../src/paper.mjs';
 import { createBotRegistry } from '../src/bot.mjs';
 import { createTargetRegistry, botExecutor } from '../src/executors.mjs';
 import { navigate } from '../src/goals.mjs';
+import { bootPaper } from './lib/paper-smoke.mjs';
 
 const args = process.argv.slice(2);
 const flag = (n, d = null) => { const i = args.indexOf(`--${n}`); return i === -1 ? d : args[i + 1]; };
@@ -44,20 +45,12 @@ let failed = false;
 let serverId = null;
 let botId = null;
 try {
-  say('1) ensure Java 21…');
-  const { javaPath } = await ensureJava({
-    feature: 21,
-    runtimesDir: join(tmpdir(), 'minecraft-automated-driver', 'runtimes'),
-    forceProvision: args.includes('--force-java-download'),
+  say(`1) ensure Java + boot Paper ${version} (offline, loopback)…`);
+  ({ serverId } = await bootPaper(servers, {
+    version, port, dir: join(work, 'server'),
+    forceJavaDownload: args.includes('--force-java-download'),
     log: (l) => say(`   ${l}`),
-  });
-
-  say(`2) provision + boot Paper ${version} (offline, loopback)…`);
-  const dir = join(work, 'server');
-  await provisionServer({ version, dir, port, log: (l) => say(`   ${l}`) });
-  serverId = servers.start({ dir, javaPath, javaArgs: ['-Xmx2G'] }).serverId;
-  const state = await servers.waitReady(serverId, { timeoutMs: 300_000 });
-  if (state !== 'ready') throw new Error(`server not ready (${state})`);
+  }));
   say('   ready.');
 
   say('3) join a REAL Mineflayer bot + register it as an executor…');

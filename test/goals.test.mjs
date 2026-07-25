@@ -19,9 +19,9 @@ function fakeExecutor(caps, handlers = {}) {
 }
 
 test('yawTo points in Minecraft yaw convention', () => {
-  assert.equal(Math.round(yawTo({ x: 0, z: 0 }, { x: 0, z: 1 })), 0);    // +Z south
+  assert.equal(Math.round(yawTo({ x: 0, z: 0 }, { x: 0, z: 1 })), 0);    // +Z south (no -0)
   assert.equal(Math.round(yawTo({ x: 0, z: 0 }, { x: 1, z: 0 })), -90);  // +X west-ish
-  assert.equal(Math.round(yawTo({ x: 0, z: 0 }, { x: 0, z: -1 })), 180); // -Z north
+  assert.equal(Math.abs(Math.round(yawTo({ x: 0, z: 0 }, { x: 0, z: -1 }))), 180); // -Z north (±180 same dir)
   assert.equal(Math.round(yawTo({ x: 0, z: 0 }, { x: -1, z: 0 })), 90);
 });
 
@@ -50,10 +50,12 @@ test('navigate composes A* + walk when only a world snapshot + primitives exist'
     // A floor strip (solid ground at y=0) so there's something to stand on along the route.
     world_snapshot: () => ({ solids: [{ x: 0, y: 0, z: 0 }, { x: 1, y: 0, z: 0 }, { x: 2, y: 0, z: 0 }] }),
   });
-  const res = await navigate(ex, { x: 2, y: 1, z: 0 }, { walk: async (e, wp) => { walked.push(wp); return { steps: wp.length - 1 }; } });
+  // range 0 → must reach the exact goal, so the path is deterministically 0→1→2 (no tie on
+  // which within-range cell to stop at).
+  const res = await navigate(ex, { x: 2, y: 1, z: 0, range: 0 }, { walk: async (e, wp) => { walked.push(wp); return { steps: wp.length - 1 }; } });
   assert.equal(res.strategy, 'planned');
   assert.equal(res.waypoints, 3);              // 0→1→2
-  assert.equal(walked[0][walked[0].length - 1].x, 2);
+  assert.deepEqual(walked[0][walked[0].length - 1], { x: 2, y: 1, z: 0 });
 });
 
 test('navigate (planned) surfaces an unreachable target', async () => {
