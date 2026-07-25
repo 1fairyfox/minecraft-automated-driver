@@ -101,6 +101,9 @@ function fakeBotRegistry() {
     gather: async (id, a) => ({ block: a.block, requested: a.count ?? 1, gathered: a.count ?? 1 }),
     hunt: async (id, a) => ({ mob: a.mob, requested: a.count ?? 1, killed: a.count ?? 1 }),
     equip: async (id, a) => ({ equipped: a.item, destination: a.destination ?? 'hand' }),
+    craft: async (id, a) => ({ crafted: a.item, count: a.count ?? 1, usedTable: false }),
+    place: async (id, a) => ({ placed: a.block, position: { x: a.x, y: a.y, z: a.z } }),
+    build: async (id, a) => ({ placed: a.blocks.length, blocks: a.blocks }),
     inventory: (id) => ({ id, items: [{ name: 'dirt', count: 1, slot: 0 }] }),
     list: () => [{ id: 'b1', username: 'DriverBot', state: 'spawned' }],
     quit: (id) => { if (id === 'b9') throw new Error(`no bot ${id}`); return { quit: id }; },
@@ -246,6 +249,40 @@ test('goal_gather / goal_hunt / bot_equip dispatch through the bot lane; a non-g
     assert.match(res.content[0].text, /cannot (gather|hunt)/);
   }
   assert.equal((await client.callTool({ name: 'goal_gather', arguments: { targetId: 'zzz', block: 'stone' } })).isError, true);
+  await close();
+});
+
+test('goal_craft / goal_place / goal_build dispatch through the bot lane; refused without the capability', async () => {
+  const reg = fakeBotRegistry();
+  const { conn: fabric } = fakeAgentConn('fabric');
+  const { client, close } = await connected({
+    l1: { botRegistry: reg, agentHandshake: async () => ({ v: 1, port: 6000, token: 't' }), agentConnect: async () => fabric },
+  });
+  await client.callTool({ name: 'bot_join', arguments: { username: 'Builder' } });
+  const c = JSON.parse((await client.callTool({ name: 'agent_connect', arguments: { dir: 'C:/client', kind: 'fabric' } })).content[0].text);
+
+  const cr = JSON.parse((await client.callTool({ name: 'goal_craft', arguments: { targetId: 'b1', item: 'crafting_table' } })).content[0].text);
+  assert.equal(cr.strategy, 'native');
+  assert.equal(cr.crafted, 'crafting_table');
+
+  const pl = JSON.parse((await client.callTool({ name: 'goal_place', arguments: { targetId: 'b1', block: 'oak_planks', x: 5, y: 64, z: 5 } })).content[0].text);
+  assert.equal(pl.placed, 'oak_planks');
+  assert.deepEqual(pl.position, { x: 5, y: 64, z: 5 });
+
+  const bd = JSON.parse((await client.callTool({ name: 'goal_build', arguments: { targetId: 'b1', blocks: [{ block: 'oak_planks', x: 0, y: 64, z: 0 }, { block: 'oak_planks', x: 0, y: 65, z: 0 }] } })).content[0].text);
+  assert.equal(bd.strategy, 'native');
+  assert.equal(bd.placed, 2);
+
+  // The Fabric client agent has no craft/place/build capability → refused cleanly.
+  for (const [name, args] of [
+    ['goal_craft', { targetId: c.connectionId, item: 'stick' }],
+    ['goal_place', { targetId: c.connectionId, block: 'stone', x: 0, y: 0, z: 0 }],
+    ['goal_build', { targetId: c.connectionId, blocks: [{ block: 'stone', x: 0, y: 0, z: 0 }] }],
+  ]) {
+    const res = await client.callTool({ name, arguments: args });
+    assert.equal(res.isError, true, `${name} should refuse the client agent`);
+    assert.match(res.content[0].text, /cannot (craft|place|build)/);
+  }
   await close();
 });
 

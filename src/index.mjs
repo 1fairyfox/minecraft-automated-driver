@@ -26,7 +26,10 @@ import { ensureJava } from './java.mjs';
 import { readHandshake, connectAgent } from './agent.mjs';
 import { createBotRegistry } from './bot.mjs';
 import { createTargetRegistry, agentExecutor, botExecutor } from './executors.mjs';
-import { navigate as navigateGoal, gather as gatherGoal, hunt as huntGoal } from './goals.mjs';
+import {
+  navigate as navigateGoal, gather as gatherGoal, hunt as huntGoal,
+  craft as craftGoal, place as placeGoal, build as buildGoal,
+} from './goals.mjs';
 import { menuNavigate, serverConnect, worldCreate, worldEnter, worldLeave, settingsSet, sliderRaw } from './flows.mjs';
 import { createClientManager } from './client.mjs';
 import { runScenario, validateScenario } from './scenario.mjs';
@@ -812,6 +815,44 @@ export async function createServer({
       maxDistance: z.number().int().positive().optional().describe('Target search radius in blocks (default 32)'),
     },
   }, (target, a) => huntGoal(target, a));
+
+  goalTool('goal_craft', {
+    title: 'Craft an item by name',
+    description:
+      'A goal-level intent: have a target craft an item by name, `count` times, from its inventory — ' +
+      'table-aware (a crafting table in reach unlocks 3x3 recipes, else the 2x2 grid). Native to the ' +
+      'Mineflayer bot lane (core recipesFor/craft); a target without a `craft` capability is refused ' +
+      'with a clear error.',
+    schema: {
+      item: z.string().min(1).describe('Item name, e.g. crafting_table, stick, wooden_pickaxe'),
+      count: z.number().int().positive().optional().describe('How many to craft (default 1)'),
+    },
+  }, (target, a) => craftGoal(target, a));
+
+  goalTool('goal_place', {
+    title: 'Place a block by name at a position',
+    description:
+      'A goal-level intent: have a target place a block (by inventory name) at (x,y,z) — equips it and ' +
+      'places against the block below the target. Native to the Mineflayer bot lane (core placeBlock); ' +
+      'a target without a `place` capability is refused with a clear error.',
+    schema: {
+      block: z.string().min(1).describe('Block name to place, e.g. oak_planks, stone'),
+      x: z.number(), y: z.number(), z: z.number(),
+    },
+  }, (target, a) => placeGoal(target, a));
+
+  goalTool('goal_build', {
+    title: 'Build a small structure',
+    description:
+      'A goal-level intent: have a target build a small structure by placing a list of blocks in order ' +
+      '(each {block,x,y,z}). Composes the `place` capability; a target without `build` is refused with a ' +
+      'clear error.',
+    schema: {
+      blocks: z.array(z.object({
+        block: z.string().min(1), x: z.number(), y: z.number(), z: z.number(),
+      })).min(1).describe('The blocks to place, in order'),
+    },
+  }, (target, a) => buildGoal(target, a));
 
   // ── Orchestration: semantic convenience verbs (notes/plans/semantic-verbs-2026-07.md) ──
   // Each is one high-level intent that the flow engine expands into the many UI steps, planned

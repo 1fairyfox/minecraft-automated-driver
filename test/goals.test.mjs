@@ -2,7 +2,7 @@
 // Fake executors only — pure orchestration.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { navigate, walkWaypoints, yawTo, gather, hunt } from '../src/goals.mjs';
+import { navigate, walkWaypoints, yawTo, gather, hunt, craft, place, build } from '../src/goals.mjs';
 
 function fakeExecutor(caps, handlers = {}) {
   const invokes = [];
@@ -95,4 +95,21 @@ test('gather/hunt delegate to a native capability, and are refused (cleanly) wit
   const cannot = fakeExecutor(['move']);
   await assert.rejects(() => gather(cannot, { block: 'stone' }), /cannot gather/);
   await assert.rejects(() => hunt(cannot, { mob: 'cow' }), /cannot hunt/);
+});
+
+test('craft/place/build delegate to their native capability, and are refused (cleanly) without it', async () => {
+  const bot = fakeExecutor(['craft', 'place', 'build'], {
+    craft: (a) => ({ crafted: a.item, count: a.count ?? 1 }),
+    place: (a) => ({ placed: a.block, position: { x: a.x, y: a.y, z: a.z } }),
+    build: (a) => ({ placed: a.blocks.length }),
+  });
+  assert.equal((await craft(bot, { item: 'crafting_table' })).strategy, 'native');
+  assert.equal((await craft(bot, { item: 'stick', count: 2 })).crafted, 'stick');
+  assert.deepEqual((await place(bot, { block: 'stone', x: 1, y: 2, z: 3 })).position, { x: 1, y: 2, z: 3 });
+  assert.equal((await build(bot, { blocks: [{ block: 'stone', x: 0, y: 0, z: 0 }, { block: 'stone', x: 0, y: 1, z: 0 }] })).placed, 2);
+
+  const cannot = fakeExecutor(['move']);
+  await assert.rejects(() => craft(cannot, { item: 'stick' }), /cannot craft/);
+  await assert.rejects(() => place(cannot, { block: 'stone', x: 0, y: 0, z: 0 }), /cannot place/);
+  await assert.rejects(() => build(cannot, { blocks: [] }), /cannot build/);
 });

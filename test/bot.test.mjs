@@ -289,6 +289,102 @@ test('equip finds the item by name and equips it; errors when absent or unnamed'
   await assert.rejects(() => registry.equip(botId, {}), /needs an item name/);
 });
 
+// ── craft / place / build (core mineflayer recipesFor/craft/placeBlock) ────────
+
+test('craft resolves a recipe table-aware and crafts count times', async () => {
+  const calls = [];
+  const { registry, created } = reg({
+    make: (o) => {
+      const b = fakeBot(o);
+      b.registry = { itemsByName: { crafting_table: { id: 182 } }, blocksByName: { crafting_table: { id: 182 } } };
+      b.findBlock = ({ matching }) => (matching === 182 ? { position: { x: 1, y: 64, z: 1 } } : null); // a table in reach
+      b.recipesFor = (itemId, meta, min, table) => { calls.push(['recipesFor', itemId, Boolean(table)]); return [{ id: 'r1' }]; };
+      b.craft = async (recipe, count, table) => { calls.push(['craft', recipe.id, count, Boolean(table)]); };
+      return b;
+    },
+  });
+  const p = registry.join({ username: 'C' }); created[0].emit('spawn'); const { botId } = await p;
+  assert.deepEqual(await registry.craft(botId, { item: 'crafting_table', count: 2 }), { crafted: 'crafting_table', count: 2, usedTable: true });
+  assert.deepEqual(calls, [['recipesFor', 182, true], ['craft', 'r1', 2, true]]);
+});
+
+test('craft works with no table in reach, and errors on unknown item / no recipe / no name', async () => {
+  const { registry, created } = reg({
+    make: (o) => {
+      const b = fakeBot(o);
+      b.registry = { itemsByName: { stick: { id: 280 }, mystery: { id: 999 } }, blocksByName: { crafting_table: { id: 182 } } };
+      b.findBlock = () => null; // no table in reach
+      b.recipesFor = (itemId) => (itemId === 280 ? [{ id: 'stickRecipe' }] : []);
+      b.craft = async () => {};
+      return b;
+    },
+  });
+  const p = registry.join({ username: 'C2' }); created[0].emit('spawn'); const { botId } = await p;
+  const res = await registry.craft(botId, { item: 'stick' });
+  assert.equal(res.usedTable, false);
+  assert.equal(res.crafted, 'stick');
+  await assert.rejects(() => registry.craft(botId, { item: 'nope' }), /unknown item/);
+  await assert.rejects(() => registry.craft(botId, { item: 'mystery' }), /no craftable recipe/);
+  await assert.rejects(() => registry.craft(botId, {}), /needs an item name/);
+});
+
+test('place equips the block and places it against the block below the target', async () => {
+  const acts = [];
+  const { registry, created } = reg({
+    make: (o) => {
+      const b = fakeBot(o);
+      b.inventory = { items: () => [{ name: 'oak_planks', count: 4, slot: 0 }] };
+      b.equip = async (item, dest) => acts.push(['equip', item.name, dest]);
+      b.vec3 = (x, y, z) => ({ x, y, z });
+      b.blockAt = (v) => { acts.push(['blockAt', v.x, v.y, v.z]); return { name: 'grass_block', position: v }; };
+      b.placeBlock = async (ref, face) => acts.push(['placeBlock', ref.name, face.y]);
+      return b;
+    },
+  });
+  const p = registry.join({ username: 'P' }); created[0].emit('spawn'); const { botId } = await p;
+  assert.deepEqual(await registry.place(botId, { block: 'oak_planks', x: 5, y: 64, z: 5 }), { placed: 'oak_planks', position: { x: 5, y: 64, z: 5 } });
+  assert.deepEqual(acts, [['equip', 'oak_planks', 'hand'], ['blockAt', 5, 63, 5], ['placeBlock', 'grass_block', 1]]);
+});
+
+test('place errors on missing item, non-numeric coords, nothing-below, and no name', async () => {
+  const { registry, created } = reg({
+    make: (o) => {
+      const b = fakeBot(o);
+      b.inventory = { items: () => [{ name: 'oak_planks', count: 4, slot: 0 }] };
+      b.equip = async () => {};
+      b.vec3 = (x, y, z) => ({ x, y, z });
+      b.blockAt = () => ({ name: 'air' });
+      b.placeBlock = async () => {};
+      return b;
+    },
+  });
+  const p = registry.join({ username: 'P2' }); created[0].emit('spawn'); const { botId } = await p;
+  await assert.rejects(() => registry.place(botId, { block: 'stone', x: 1, y: 1, z: 1 }), /no 'stone' in inventory/);
+  await assert.rejects(() => registry.place(botId, { block: 'oak_planks', x: 1, y: 1 }), /numeric x, y, z/);
+  await assert.rejects(() => registry.place(botId, { block: 'oak_planks', x: 1, y: 1, z: 1 }), /nothing to place against/);
+  await assert.rejects(() => registry.place(botId, {}), /needs a block name/);
+});
+
+test('build places each block in order; errors on an empty list and an unknown bot', async () => {
+  const { registry, created } = reg({
+    make: (o) => {
+      const b = fakeBot(o);
+      b.inventory = { items: () => [{ name: 'oak_planks', count: 8, slot: 0 }] };
+      b.equip = async () => {};
+      b.vec3 = (x, y, z) => ({ x, y, z });
+      b.blockAt = (v) => ({ name: 'grass_block', position: v });
+      b.placeBlock = async () => {};
+      return b;
+    },
+  });
+  const p = registry.join({ username: 'B' }); created[0].emit('spawn'); const { botId } = await p;
+  const res = await registry.build(botId, { blocks: [{ block: 'oak_planks', x: 1, y: 64, z: 1 }, { block: 'oak_planks', x: 1, y: 65, z: 1 }] });
+  assert.equal(res.placed, 2);
+  assert.equal(res.blocks.length, 2);
+  await assert.rejects(() => registry.build(botId, { blocks: [] }), /non-empty blocks list/);
+  await assert.rejects(() => registry.build('b99', { blocks: [{ block: 'x', x: 0, y: 0, z: 0 }] }), /no bot/);
+});
+
 test('the message ring buffer is bounded', async () => {
   const { registry, created } = reg({ logCap: 3 });
   const p = registry.join({ username: 'R' });

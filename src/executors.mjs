@@ -46,6 +46,10 @@ function botCapabilityMap(registry, id) {
     gather: ({ block, count, maxDistance, timeoutMs } = {}) => registry.gather(id, { block, count, maxDistance, timeoutMs }),
     hunt: ({ mob, count, weapon, maxDistance, timeoutMs } = {}) => registry.hunt(id, { mob, count, weapon, maxDistance, timeoutMs }),
     equip: ({ item, destination } = {}) => registry.equip(id, { item, destination }),
+    // Native craft/place/build (core Mineflayer recipesFor/craft/placeBlock).
+    craft: ({ item, count } = {}) => registry.craft(id, { item, count }),
+    place: ({ block, x, y, z } = {}) => registry.place(id, { block, x, y, z }),
+    build: ({ blocks } = {}) => registry.build(id, { blocks }),
   };
 }
 
