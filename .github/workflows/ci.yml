@@ -214,6 +214,26 @@ jobs:
       - run: npm ci
       - run: node scripts/bot-smoke.mjs --force-java-download
 
+  # Real-machine proof of the universal navigation GOAL (0.11.0): boot a local offline Paper
+  # server, join a real Mineflayer bot, register it as an executor, and drive it with the
+  # backend-agnostic goal engine — which delegates to native A* pathfinding for a bot. Proves
+  # goal engine → executor → bot registry → pathfinder → live server. No mocks.
+  nav-smoke:
+    name: Nav smoke (goal engine → A* pathfind)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: node scripts/nav-smoke.mjs --force-java-download
+
   # Real-machine proof of the L1 exit criteria (roadmap Phase 2): auto-provision a
   # JRE (deliberately NO setup-java — the driver must fetch its own), download a real
   # Paper server, boot it to "Done", drive the console, stop it. No mocks.

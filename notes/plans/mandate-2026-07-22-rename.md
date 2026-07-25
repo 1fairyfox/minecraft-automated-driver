@@ -108,7 +108,7 @@ the Java client agent would be strictly worse. Plan: `notes/plans/goal-level-aut
 
 | # | Clause | Interpretation | Status |
 |---|--------|----------------|--------|
-| 30 | "A path navigation with moving, jumping" | A\* pathfinding on the L2 lane: `bot_goto` (navigate to coords/blocks with walk+jump+parkour via mineflayer-pathfinder), proven by a real smoke that pathfinds across a booted server. | in-progress |
+| 30 | "A path navigation with moving, jumping" | Shipped in **0.11.0** as a *universal* goal, not a bot-only tool: a pure MCP-side A\* planner (`src/pathfind.mjs`, walk/jump/drop/range) + the goal engine (`src/goals.mjs`, native-or-planned) + native bot pathfinding via mineflayer-pathfinder; `goal_navigate` tool; real `nav-smoke` (goal engine → executor → pathfinder → live server). | done |
 | 31 | "'chop down a tree' or 'hunt down zombies' … use weapons and tools" | Goal tasks on L2: `bot_collect`/`bot_chop` (mineflayer-collectblock, auto-equips the right tool via mineflayer-tool), `bot_hunt`/`bot_attack` (mineflayer-pvp; equips a weapon), so a single intent runs many steps. | in-progress |
 | 32 | "give it a recipe … make the recipe … build/make and/or place something … not … command by command" | Goal tasks: `craft` (recipe by item name/count, uses a crafting table when needed), `place`/`build` (place a block / a small structure from a spec). The through-line: intents in, multi-step execution out. | in-progress |
 

@@ -7,7 +7,7 @@ export const EXPECTED_TOOLS = [
   'bot_chat', 'bot_inventory', 'bot_join', 'bot_messages', 'bot_move', 'bot_quit',
   'bot_status', 'bots_list',
   'build_gradle', 'client_kill', 'client_spawn', 'clients_list',
-  'driver_status', 'instance_close', 'instance_open', 'instances_list',
+  'driver_status', 'goal_navigate', 'instance_close', 'instance_open', 'instances_list',
   'job_kill', 'job_log', 'job_status', 'jobs_list',
   'os_screenshot', 'os_windows_list',
   'server_exec', 'server_provision', 'server_start', 'server_stop', 'servers_list',
