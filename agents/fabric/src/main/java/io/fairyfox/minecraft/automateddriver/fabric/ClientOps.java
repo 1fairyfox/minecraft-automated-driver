@@ -15,6 +15,7 @@ import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.Element;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.screen.ingame.HandledScreen;
+import net.minecraft.client.gui.screen.world.WorldListWidget;
 import net.minecraft.client.gui.widget.ClickableWidget;
 import net.minecraft.client.gui.widget.PressableWidget;
 import net.minecraft.client.gui.widget.TextFieldWidget;
@@ -263,6 +264,84 @@ public final class ClientOps {
         }
         out.put("slots", slotList);
         return out;
+    }
+
+    // ── world lifecycle: the SelectWorldScreen (client-coupled) ───────────────
+
+    /**
+     * The saved worlds listed on the current {@code SelectWorldScreen}, by display name. World
+     * list entries are NOT clickable widgets on the screen (they live inside the world list),
+     * so the {@code screen}/{@code click} primitives can't see or pick them — this op (and
+     * {@link #selectWorld}) are the clean capability that can. {@code {worlds:[...]}}, or
+     * {@code {worlds:[]}} when the current screen has no world list (or it hasn't loaded yet).
+     */
+    public static Map<String, Object> listWorlds() {
+        WorldListWidget list = findWorldList(MinecraftClient.getInstance().currentScreen);
+        List<String> names = new ArrayList<>();
+        if (list != null) {
+            for (WorldListWidget.Entry entry : list.children()) {
+                if (entry instanceof WorldListWidget.WorldEntry world) {
+                    names.add(world.getLevelDisplayName());
+                }
+            }
+        }
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("worlds", names);
+        return out;
+    }
+
+    /**
+     * Select a saved world BY NAME on the current {@code SelectWorldScreen} and enter it —
+     * matched exact-or-unique-substring by {@link WidgetIntrospector#resolve} (never guessed),
+     * then {@code play()}. Returns {@code {selected:true,name}} on entry, else
+     * {@code {selected:false,error}} (no world list, list not loaded, or no unique match) so the
+     * driver can retry while the async world list loads.
+     */
+    public static Map<String, Object> selectWorld(String name) {
+        Map<String, Object> out = new LinkedHashMap<>();
+        if (name == null || name.isBlank()) {
+            out.put("selected", false);
+            out.put("error", "no world name given");
+            return out;
+        }
+        WorldListWidget list = findWorldList(MinecraftClient.getInstance().currentScreen);
+        if (list == null) {
+            out.put("selected", false);
+            out.put("error", "no world list on the current screen");
+            return out;
+        }
+        List<WorldListWidget.WorldEntry> entries = new ArrayList<>();
+        List<WidgetIntrospector.Widget> descriptors = new ArrayList<>();
+        for (WorldListWidget.Entry entry : list.children()) {
+            if (entry instanceof WorldListWidget.WorldEntry world) {
+                descriptors.add(new WidgetIntrospector.Widget(
+                    world.getLevelDisplayName(), "WorldEntry", entries.size(), 0, 0, 0, 0, true));
+                entries.add(world);
+            }
+        }
+        Optional<WidgetIntrospector.Widget> match = WidgetIntrospector.resolve(descriptors, name);
+        if (match.isEmpty()) {
+            out.put("selected", false);
+            out.put("error", entries.isEmpty() ? "world list not loaded yet" : "no unique world matched '" + name + "'");
+            return out;
+        }
+        entries.get(match.get().index()).play(); // enters the world (no separate Play click needed)
+        out.put("selected", true);
+        out.put("name", match.get().label());
+        return out;
+    }
+
+    /** Find the {@link WorldListWidget} among a screen's children, or null if it isn't one. */
+    private static WorldListWidget findWorldList(Screen screen) {
+        if (screen == null) {
+            return null;
+        }
+        for (Element element : screen.children()) {
+            if (element instanceof WorldListWidget list) {
+                return list;
+            }
+        }
+        return null;
     }
 
     private static TextFieldWidget resolveTextField(Screen screen, String name) {
