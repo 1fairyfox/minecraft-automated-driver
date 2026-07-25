@@ -27,7 +27,7 @@ import { readHandshake, connectAgent } from './agent.mjs';
 import { createBotRegistry } from './bot.mjs';
 import { createTargetRegistry, agentExecutor, botExecutor } from './executors.mjs';
 import { navigate as navigateGoal } from './goals.mjs';
-import { menuNavigate, serverConnect, worldCreate, worldEnter, worldLeave, settingsSet } from './flows.mjs';
+import { menuNavigate, serverConnect, worldCreate, worldEnter, worldLeave, settingsSet, sliderRaw } from './flows.mjs';
 import { createClientManager } from './client.mjs';
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
@@ -893,8 +893,9 @@ export async function createServer({
       description:
         'One intent → Options → (traverse sub-screens by `path`) → set a control to `value` → ' +
         'optional Done. Booleans map to ON/OFF and cyclers are clicked until they show the value; ' +
-        'a NUMERIC value is a slider, dispatched to the target\'s `slider` capability when it has ' +
-        'one (else a clear error). Needs screen+click (+slider for numeric values).',
+        'a NUMERIC value sets an option-backed slider to that exact value (e.g. Difficulty stays a ' +
+        'cycler, but FOV=70) via the target\'s `slider` capability. For a raw 0..1 fraction use ' +
+        'ui_slider. Needs screen+click (+slider for numeric values).',
       inputSchema: {
         targetId: z.string(),
         control: z.string().min(1).describe('The control\'s stable label, e.g. "Difficulty"'),
@@ -907,6 +908,31 @@ export async function createServer({
     async ({ targetId, control, value, path = [], back = false, labels }) => {
       try {
         return text(await settingsSet(targets.get(targetId), { control, value, path, back, labels: labels ?? {} }));
+      } catch (err) {
+        return failure(err);
+      }
+    },
+  );
+
+  server.registerTool(
+    'ui_slider',
+    {
+      title: 'Get or set a slider (raw)',
+      description:
+        'The raw slider surface on the CURRENT screen (navigate there first, e.g. with ' +
+        'ui_menu_navigate): `fraction` (0..1) sets any slider\'s raw progress; `value` sets an ' +
+        'option-backed slider\'s typed value (e.g. FOV 70); omit both to just read. Returns ' +
+        '{handled,label,fraction,value}. Needs a target advertising the `slider` capability.',
+      inputSchema: {
+        targetId: z.string(),
+        control: z.string().min(1).optional().describe('Slider label (omit to use the sole slider on screen)'),
+        fraction: z.number().min(0).max(1).optional().describe('Raw normalised progress 0..1'),
+        value: z.number().optional().describe('Typed option value for an option-backed slider'),
+      },
+    },
+    async ({ targetId, control, fraction, value }) => {
+      try {
+        return text(await sliderRaw(targets.get(targetId), { control, fraction, value }));
       } catch (err) {
         return failure(err);
       }

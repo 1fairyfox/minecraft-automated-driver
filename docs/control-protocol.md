@@ -65,7 +65,7 @@ data directory:
 ## v1 capabilities (Fabric client agent)
 
 Advertised as `capabilities:["screen","click","key","screenshot","position","look",
-"move","type","slots","close","world_list","world_select"]`. Every op is marshalled to the
+"move","type","slots","close","world_list","world_select","slider"]`. Every op is marshalled to the
 client render thread. UI and the player are driven **by name / by intent, never by pixel** —
 the whole point of the client agent.
 
@@ -83,6 +83,7 @@ the whole point of the client agent.
 | `close` | — | `{"closed":true/false}` — dismiss the current screen (the Escape equivalent) |
 | `world_list` | — | `{"worlds":["…"]}` — the saved worlds on the current SelectWorldScreen by display name (world-list entries aren't clickable widgets, so `screen`/`click` can't see them). `[]` off that screen / before the async list loads |
 | `world_select` | `{"name":"My World"}` | `{"selected":true,"name":"…"}` — resolve a world by name (exact-or-unique-substring, never guessed) and enter it; `{"selected":false,"error":"…"}` when there's no list, it hasn't loaded (retryable), or no unique match |
+| `slider` | `{"name":"FOV"?,"fraction":0.5?,"value":90?}` | `{"handled":true,"label":"FOV: 90","fraction":<0..1>,"value":<typed or null>}` — the raw slider surface (a slider isn't drivable by `click`). `fraction` sets any slider's normalised 0..1 progress (via a Mixin `@Invoker` on the protected `SliderWidget.setValue`); `value` sets an option-backed slider's TYPED value (coerced to the option's own int/long/float/double, via the public `SimpleOption.setValue`); omit both to read. No name ⇒ the sole slider on screen. `{"handled":false,"error":"…"}` when absent or not a slider |
 
 Additions (goal-level tasks — pathfinding/navigation, gather/chop, hunt/combat, craft,
 build/place; teleports; world edits; the reflection gateway with its read/write grants)
@@ -92,15 +93,15 @@ already has A\* pathfinding, PvP, block-collection and tooling), with the L3 cli
 staying the semantic UI/player-input surface. **Reflection writes will require an explicit
 per-session grant op** — recorded here so no implementation forgets it.
 
-> Note (0.12.0–0.13.0): the driver builds **semantic convenience verbs** (connect-by-address,
+> Note (0.12.0–0.14.0): the driver builds **semantic convenience verbs** (connect-by-address,
 > world create/enter/leave, menu navigation, settings changes) by *composing* the ops above
-> MCP-side (`src/flows.mjs`) — most are NOT new agent ops. Two things the primitives can't
-> express cleanly become their own ops, per the anti-hack rule (a missing capability is added,
-> never glued around): `world_list`/`world_select` (0.13.0 — done above; world-list entries
-> aren't clickable widgets) and a **slider set** (still pending — `SliderWidget.setValue` is
-> protected, so it needs a Mixin `@Invoker` to reach it in a remap-safe way, and sliders carry
-> per-option value ranges with no generic display-value setter; the MCP side already dispatches
-> a numeric `ui_settings_set` to a `slider` capability the moment the agent advertises one).
+> MCP-side (`src/flows.mjs`) — most are NOT new agent ops. Three things the primitives can't
+> express cleanly became their own ops, per the anti-hack rule (a missing capability is added,
+> never glued around): `world_list`/`world_select` (0.13.0 — world-list entries aren't clickable
+> widgets) and `slider` (0.14.0 — a Mixin `@Invoker` reaches the protected `SliderWidget.setValue`
+> remap-safely, and the `SimpleOption` behind an option slider gives the TYPED per-option value).
+> `ui_settings_set` routes a numeric value to the typed set; `ui_slider` exposes the raw 0..1
+> fraction + read.
 
 ## Threading rules (agent side)
 

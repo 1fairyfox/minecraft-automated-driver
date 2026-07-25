@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   DEFAULT_LABELS, readScreen, findWidget, waitFor, cycleControlTo,
-  menuNavigate, serverConnect, worldCreate, worldEnter, worldLeave, settingsSet,
+  menuNavigate, serverConnect, worldCreate, worldEnter, worldLeave, settingsSet, sliderRaw,
 } from '../src/flows.mjs';
 
 const noSleep = async () => {};
@@ -41,7 +41,7 @@ function client({ caps = ['screen', 'click', 'type', 'position', 'close'], scree
       if (cap === 'close') { if (s.escTo != null) idx = s.escTo; return { closed: true }; }
       if (cap === 'position') return typeof position === 'function' ? position(idx) : (position ?? { inWorld: false });
       if (cap === 'world_select') { if (s.worldTo != null) idx = s.worldTo; return { selected: true, name: args.name }; }
-      if (cap === 'slider') return { control: args.name, value: args.value };
+      if (cap === 'slider') return { handled: true, label: `${args.name ?? 'Slider'}: ${args.value ?? args.fraction ?? '?'}`, fraction: args.fraction ?? 0.5, value: args.value ?? null };
       if (cap === 'click') {
         const name = String(args.name).toLowerCase();
         const cyc = (s.cyclers ?? []).find((c) => c.label.toLowerCase().includes(name));
@@ -322,7 +322,8 @@ test('settingsSet dispatches a numeric value to the agent slider capability when
   });
   const res = await settingsSet(c, { control: 'FOV', value: 70 }, fast);
   assert.equal(res.to, 70);
-  assert.equal(res.value, 70);
+  assert.equal(res.value, 70);          // typed value echoed back from the option
+  assert.equal(res.control, 'FOV: 70'); // the agent's label reflects the new value
   assert.ok(c.calls.some((k) => k.cap === 'slider' && k.args.name === 'FOV' && k.args.value === 70));
 });
 
@@ -353,6 +354,26 @@ test('settingsSet surfaces an unknown control and a value it cannot reach', asyn
     screens: [{ screen: 'Title', buttons: [{ label: 'Options', to: 1 }] }, { screen: 'Options', cyclers: [{ label: 'Mode', values: ['A', 'B'], i: 0 }] }],
   });
   await assert.rejects(() => settingsSet(stuck, { control: 'Mode', value: 'Z', ...{} }, { ...fast, cycle: { maxClicks: 2 } }), /could not set 'Mode' to 'Z'/);
+});
+
+test('sliderRaw forwards fraction/value/control and reads through the slider capability', async () => {
+  const c = client({ caps: ['screen', 'click', 'slider'], screens: [{ screen: 'Video', buttons: [] }] });
+  const setFrac = await sliderRaw(c, { control: 'Gamma', fraction: 0.25 });
+  assert.equal(setFrac.handled, true);
+  assert.equal(setFrac.fraction, 0.25);
+  const call = c.calls.find((k) => k.cap === 'slider');
+  assert.equal(call.args.name, 'Gamma');
+  assert.equal(call.args.fraction, 0.25);
+
+  const setVal = await sliderRaw(c, { control: 'FOV', value: 90 });
+  assert.equal(setVal.value, 90);
+
+  const read = await sliderRaw(c, { control: 'FOV' }); // no fraction/value → read
+  assert.equal(read.handled, true);
+});
+
+test('sliderRaw refuses a target without the slider capability', async () => {
+  await assert.rejects(() => sliderRaw({ id: 'n', has: () => false }, { control: 'FOV', value: 1 }), /cannot set a slider/);
 });
 
 test('cycleControlTo refuses a numeric target and matches a colon-less label', async () => {

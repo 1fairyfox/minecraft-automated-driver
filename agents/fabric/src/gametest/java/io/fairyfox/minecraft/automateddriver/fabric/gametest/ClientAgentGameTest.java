@@ -85,6 +85,17 @@ public class ClientAgentGameTest implements FabricClientGameTest {
                 "screenshot op did not return a png: " + summarise(shot));
             requirePng(decodePng(shot), "title-screen screenshot");
 
+            // Clicking Options opened the OptionsScreen, whose sole slider is FOV. Drive it by
+            // intent: set the raw 0..1 progress (works on any slider via the mixin accessor), then
+            // set the option's TYPED value directly (FOV = 90) and confirm it applied.
+            String frac = pollForSlider(out, "{\"type\":\"req\",\"id\":4,\"op\":\"slider\",\"fraction\":0.5}", in);
+            require(frac.contains("\"ok\":true") && frac.contains("\"handled\":true"),
+                "slider (raw fraction) failed on the Options screen: " + summarise(frac));
+            send(out, "{\"type\":\"req\",\"id\":5,\"op\":\"slider\",\"value\":90}");
+            String typedSlider = in.readLine();
+            require(typedSlider != null && typedSlider.contains("\"ok\":true") && typedSlider.contains("\"value\":90"),
+                "slider (typed option value) did not apply: " + summarise(typedSlider));
+
             // A wrong token on a fresh connection must be refused (security check).
             requireWrongTokenRefused(port);
         } catch (AssertionError e) {
@@ -196,6 +207,20 @@ public class ClientAgentGameTest implements FabricClientGameTest {
         } catch (Exception e) {
             throw new AssertionError("world-menu drive failed: " + e, e);
         }
+    }
+
+    /** The Options screen's widgets settle across a tick or two — poll the slider until handled. */
+    private static String pollForSlider(BufferedWriter out, String req, BufferedReader in) throws java.io.IOException {
+        String last = "{}";
+        for (int i = 0; i < 20; i++) {
+            send(out, req);
+            last = in.readLine();
+            if (last != null && last.contains("\"handled\":true")) {
+                return last;
+            }
+            sleep(200);
+        }
+        return last == null ? "null" : last;
     }
 
     /** The SelectWorldScreen loads its worlds asynchronously — poll world_list until populated. */
