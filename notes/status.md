@@ -1,6 +1,6 @@
 # Status — Minecraft Automated Driver
 
-**Updated:** 2026-07-24 · **Version:** 0.14.0 · **Phase:** goal-level autonomy — capability seam (0.10.0) + navigation (0.11.0) + convenience verbs (0.12.0) + world_list/world_select (0.13.0) + slider/typed-option ops (0.14.0) shipped; next: multi-target scenarios (scenario_run)
+**Updated:** 2026-07-25 · **Version:** 0.15.0 · **Phase:** goal-level autonomy — capability seam (0.10.0) + navigation (0.11.0) + convenience verbs (0.12.0) + world_list/world_select (0.13.0) + slider/typed-option ops (0.14.0) + multi-target scenarios (0.15.0) shipped; next: gather/combat goals, then craft/build
 
 ## What this is
 
@@ -71,8 +71,18 @@ behind one tool surface. **Founding plan: `plans/roadmap-2026-07.md` — read it
   `ui_settings_set` numeric → typed set, new `ui_slider` raw tool, `flows.sliderRaw`. Real gametest
   drives the OptionsScreen FOV slider (fraction + typed 90). The client-control API now covers every
   option kind — no residual gap.
-- **Next — multi-target scenarios (`scenario_run`)**: provision + coordinate server + client + bots
-  together with teardown; then gather/combat, craft/build. Plan `plans/goal-level-autonomy-2026-07.md`.
+- **Multi-target scenarios are live (0.15.0)**: `src/scenario.mjs` — a PURE, backend-agnostic
+  orchestration engine (`runScenario`) that provisions server + client(s) + bot(s) together, runs
+  coordinated cross-target steps, and GUARANTEES reverse-order teardown (even on a provision/step/
+  teardown failure — errors collected, cleanup continues). Provisioners (by actor kind) + actions
+  (by step verb) are injected; the `scenario_run` tool wires them over the live managers and runs as
+  a job (report = `{ok, provisioned, steps, teardown}`). Real `scenario-smoke` (+ CI job): one
+  `scenario_run` boots a REAL Paper server + REAL Mineflayer bot together, coordinates them, tears
+  both down — driven through the actual MCP tool, no mocks. Owner Esc. 12 ("server + client testing
+  at the same time … no fragile glue") satisfied MCP-side.
+- **Next — gather/combat goals** (`plans/goal-level-autonomy-2026-07.md`): `gather`/`chop`,
+  `hunt`/`attack`, tool/weapon equip — delegating to Mineflayer's collectblock/pvp/tool where
+  present, composed from primitives otherwise; then `craft` + `build`/`place`.
 - **Phase 3 / L3 Paper agent live** since 0.4.0: control-protocol spec + Kotlin Paper
   agent (state/exec/events), disabled-by-default, real e2e smoke.
 - **Phase 2 / L1 live** since 0.3.0: gradle driver, job model, Paper provision/boot/

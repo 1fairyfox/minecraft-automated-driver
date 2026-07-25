@@ -29,6 +29,7 @@ import { createTargetRegistry, agentExecutor, botExecutor } from './executors.mj
 import { navigate as navigateGoal } from './goals.mjs';
 import { menuNavigate, serverConnect, worldCreate, worldEnter, worldLeave, settingsSet, sliderRaw } from './flows.mjs';
 import { createClientManager } from './client.mjs';
+import { runScenario, validateScenario } from './scenario.mjs';
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 
@@ -933,6 +934,172 @@ export async function createServer({
     async ({ targetId, control, fraction, value }) => {
       try {
         return text(await sliderRaw(targets.get(targetId), { control, fraction, value }));
+      } catch (err) {
+        return failure(err);
+      }
+    },
+  );
+
+  // ── Orchestration: multi-target scenarios (notes/plans/goal-level-autonomy-2026-07.md §3) ──
+  // A scenario provisions server + client(s) + bot(s) together, runs cross-target steps, and
+  // guarantees teardown. The engine (src/scenario.mjs) is pure; these closures are the real
+  // provisioners (by actor kind) and actions (by step verb) over the live managers. Each
+  // provisioner returns { info, teardown }; `info.targetId` marks a controllable executor so a
+  // step can invoke/navigate it, exactly like a bot/agent from targets_list.
+
+  const scenarioProvisioners = {
+    // Provision + boot a LOCAL offline Paper server (download → configure → start → wait ready).
+    async server(actor) {
+      const {
+        version: mcVersion, dir, port = 25565, plugins = [],
+        javaArgs = ['-Xmx2G'], waitReadyMs = 300_000,
+      } = actor;
+      if (!mcVersion) throw new Error(`server actor '${actor.id}' needs a version (e.g. 1.21.11)`);
+      const target = dir ?? join(cfg.runDir, `scenario-${actor.id}-${mcVersion}-${Date.now()}`);
+      await provision({ version: mcVersion, dir: target, port });
+      for (const pluginJar of plugins) await deploy({ dir: target, pluginJar });
+      const { javaPath } = await java({ feature: 21, runtimesDir: cfg.runtimesDir });
+      const started = servers.start({ dir: target, javaPath, javaArgs });
+      const state = await servers.waitReady(started.serverId, { timeoutMs: waitReadyMs });
+      if (state !== 'ready') throw new Error(`server '${actor.id}' did not reach ready (state: ${state})`);
+      return {
+        info: { serverId: started.serverId, jobId: started.jobId, dir: target, port, state },
+        teardown: () => servers.stop(started.serverId, { timeoutMs: 60_000 }),
+      };
+    },
+    // Join a headless Mineflayer bot and register it as an executor (targetId = its bot id).
+    async bot(actor) {
+      const registry = await getBots();
+      const { host = '127.0.0.1', port = 25565, username, timeoutMs } = actor;
+      const joined = await registry.join({
+        host, port, ...(username ? { username } : {}), ...(timeoutMs ? { timeoutMs } : {}),
+      });
+      targets.add(botExecutor({ id: joined.botId, registry }));
+      return {
+        info: { botId: joined.botId, username: joined.username, targetId: joined.botId },
+        teardown: () => { const r = registry.quit(joined.botId); targets.remove(joined.botId); return r; },
+      };
+    },
+    // Spawn a real Fabric client and (by default) connect its agent as an executor.
+    async client(actor) {
+      const { agentDir, waitReadyMs, connect = true } = actor;
+      const spawned = await clients.spawn({
+        agentDir: agentDir ?? defaultAgentDir, ...(waitReadyMs ? { waitReadyMs } : {}),
+      });
+      let connection = null;
+      let connectionId = null;
+      let capabilities = null;
+      if (connect) {
+        const hs = await agentHandshake(spawned.connectDir, { kind: 'fabric' });
+        connection = await agentConnect({ port: hs.port, token: hs.token });
+        connectionId = `a${++agentCounter}`;
+        agents.set(connectionId, connection);
+        targets.add(agentExecutor({ id: connectionId, kind: 'client', connection }));
+        capabilities = connection.welcome.capabilities;
+      }
+      return {
+        info: {
+          clientId: spawned.clientId, jobId: spawned.jobId, connectDir: spawned.connectDir,
+          ...(connectionId ? { connectionId, capabilities, targetId: connectionId } : {}),
+        },
+        teardown: () => {
+          if (connection) { connection.close(); agents.delete(connectionId); targets.remove(connectionId); }
+          return clients.kill(spawned.clientId);
+        },
+      };
+    },
+    // Attach to an ALREADY-running agent by its data dir, as an executor. `layout` (paper|fabric)
+    // is a separate field so it doesn't collide with the actor's own `kind:"agent"`.
+    async agent(actor) {
+      const { dir, layout, agentName } = actor;
+      if (!dir) throw new Error(`agent actor '${actor.id}' needs a dir`);
+      const hs = await agentHandshake(dir, { ...(layout ? { kind: layout } : {}), ...(agentName ? { agentName } : {}) });
+      const connection = await agentConnect({ port: hs.port, token: hs.token });
+      const connectionId = `a${++agentCounter}`;
+      agents.set(connectionId, connection);
+      const execKind = connection.welcome.agent === 'fabric' ? 'client' : 'server';
+      targets.add(agentExecutor({ id: connectionId, kind: execKind, connection }));
+      return {
+        info: { connectionId, agent: connection.welcome.agent, capabilities: connection.welcome.capabilities, targetId: connectionId },
+        teardown: () => { connection.close(); agents.delete(connectionId); targets.remove(connectionId); },
+      };
+    },
+  };
+
+  const scenarioActions = {
+    // Let things settle between steps.
+    async wait(step, ctx) {
+      const ms = step.ms ?? 0;
+      await ctx.sleep(ms);
+      return { waited: ms };
+    },
+    // Invoke ANY advertised capability on an actor that is a controllable target (bot/agent) —
+    // the backend-agnostic cross-target verb (bot chat/status, agent state/screen, …).
+    async invoke(step, ctx) {
+      if (!step.actor) throw new Error('invoke step needs an actor');
+      if (!step.capability) throw new Error('invoke step needs a capability');
+      return targets.get(ctx.targetId(step.actor)).invoke(step.capability, step.args ?? {});
+    },
+    // Goal-level navigation on a target, through the same engine as goal_navigate.
+    async navigate(step, ctx) {
+      if (!step.actor) throw new Error('navigate step needs an actor');
+      return navigateGoal(targets.get(ctx.targetId(step.actor)), { x: step.x, y: step.y, z: step.z, range: step.range });
+    },
+    // Send a console command to a server actor (via the server manager, not the target registry).
+    async server_exec(step, ctx) {
+      if (!step.actor) throw new Error('server_exec step needs an actor');
+      if (!step.command) throw new Error('server_exec step needs a command');
+      const info = ctx.actor(step.actor);
+      if (!info.serverId) throw new Error(`actor '${step.actor}' is not a server`);
+      return servers.exec(info.serverId, step.command);
+    },
+  };
+
+  server.registerTool(
+    'scenario_run',
+    {
+      title: 'Run a multi-target scenario',
+      description:
+        'Provision and coordinate several targets AT ONCE — a Paper server, spawned Fabric ' +
+        'client(s), and/or Mineflayer bot(s) — run a sequence of cross-target steps, and ' +
+        'GUARANTEE teardown in reverse order (even on failure). Server-and-client-and-bot ' +
+        'testing as ONE lifecycle object, not hand-wired server_start + client_spawn + bot_join. ' +
+        'Runs as a job (heavy: boots servers/clients); the job RESULT is the full scenario report ' +
+        '{ok, provisioned, steps, teardown}. Pass waitMs to block up to that long and return the ' +
+        'finished report inline.\n\n' +
+        'actors[]: {id, kind:"server"|"client"|"bot"|"agent", …opts}. ' +
+        'server:{version,dir?,port?,plugins?,javaArgs?,waitReadyMs?}; bot:{host?,port?,username?}; ' +
+        'client:{agentDir?,waitReadyMs?,connect?}; agent:{dir,layout?,agentName?}. ' +
+        'steps[] run in order: {action:"wait"|"invoke"|"navigate"|"server_exec", …}. ' +
+        'invoke:{actor,capability,args?} (any advertised capability on a bot/agent); ' +
+        'navigate:{actor,x,y,z,range?}; server_exec:{actor,command}; wait:{ms}.',
+      inputSchema: {
+        name: z.string().optional().describe('A label for the run'),
+        actors: z.array(
+          z.object({
+            id: z.string().min(1),
+            kind: z.enum(['server', 'client', 'bot', 'agent']),
+          }).passthrough(),
+        ).min(1).describe('Targets to provision, in order'),
+        steps: z.array(
+          z.object({ action: z.enum(['wait', 'invoke', 'navigate', 'server_exec']) }).passthrough(),
+        ).optional().describe('Cross-target steps, in order'),
+        waitMs: z.number().int().positive().optional()
+          .describe('Block up to this long for the scenario to finish, returning the report inline'),
+      },
+    },
+    async ({ name, actors, steps = [], waitMs }) => {
+      try {
+        const spec = { name, actors, steps };
+        // Fail fast on a structural mistake (unknown actor ref, duplicate id) at the tool
+        // boundary rather than as a failed job the caller has to poll for.
+        validateScenario(spec, { provisioners: scenarioProvisioners, actions: scenarioActions });
+        const snap = jobs.start(
+          `scenario ${name ?? 'run'}`,
+          () => runScenario(spec, { provisioners: scenarioProvisioners, actions: scenarioActions }),
+        );
+        if (waitMs) return text(await jobs.wait(snap.id, { timeoutMs: waitMs }));
+        return text(snap);
       } catch (err) {
         return failure(err);
       }
