@@ -48,6 +48,7 @@ public class ClientAgentGameTest implements FabricClientGameTest {
 
         driveTitleScreen(port, token);
         driveInWorld(context, port, token);
+        driveWorldMenu(port, token);
 
         context.takeScreenshot("after-driving");
     }
@@ -153,6 +154,62 @@ public class ClientAgentGameTest implements FabricClientGameTest {
         } catch (Exception e) {
             throw new AssertionError("in-world drive failed: " + e, e);
         }
+    }
+
+    // ── Phase 3: the world-select menu (world_list / world_select ops) ────────
+
+    /**
+     * Back at the title screen after leaving the created world, drive the SelectWorldScreen:
+     * open Singleplayer by name, poll {@code world_list} until the saved world appears (world-list
+     * entries aren't clickable widgets, so this op is the only way to read them), and confirm
+     * {@code world_select} refuses an unknown name (the safe no-match path). Entering a world via
+     * {@code play()} is left to real use — re-entering here would fight the gametest's own world
+     * lifecycle — so this proves the read + resolve logic on a genuine screen.
+     */
+    private void driveWorldMenu(int port, String token) {
+        try (Socket socket = new Socket("127.0.0.1", port);
+             BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8));
+             BufferedWriter out = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8))) {
+            socket.setSoTimeout(30_000);
+
+            send(out, "{\"type\":\"hello\",\"v\":1,\"token\":\"" + token + "\"}");
+            require(in.readLine() != null, "no welcome on the world-menu connection");
+
+            // Open Singleplayer BY NAME (never coordinates), reaching the SelectWorldScreen.
+            send(out, "{\"type\":\"req\",\"id\":1,\"op\":\"click\",\"name\":\"Singleplayer\"}");
+            String click = in.readLine();
+            require(click != null && click.contains("\"ok\":true") && click.contains("\"clicked\":true"),
+                "click-by-name 'Singleplayer' failed: " + click);
+
+            // The world list loads asynchronously — poll world_list until the created world appears.
+            String worlds = pollForWorlds(out, in);
+            require(worlds.contains("\"ok\":true") && worlds.contains("\"worlds\":[\""),
+                "world_list did not return the created world: " + summarise(worlds));
+
+            // world_select refuses a name that matches nothing (never guesses).
+            send(out, "{\"type\":\"req\",\"id\":3,\"op\":\"world_select\",\"name\":\"no-such-world-zzzz\"}");
+            String miss = in.readLine();
+            require(miss != null && miss.contains("\"ok\":true") && miss.contains("\"selected\":false"),
+                "world_select should refuse an unknown world: " + miss);
+        } catch (AssertionError e) {
+            throw e;
+        } catch (Exception e) {
+            throw new AssertionError("world-menu drive failed: " + e, e);
+        }
+    }
+
+    /** The SelectWorldScreen loads its worlds asynchronously — poll world_list until populated. */
+    private static String pollForWorlds(BufferedWriter out, BufferedReader in) throws java.io.IOException {
+        String last = "{}";
+        for (int i = 0; i < 40; i++) {
+            send(out, "{\"type\":\"req\",\"id\":2,\"op\":\"world_list\"}");
+            last = in.readLine();
+            if (last != null && last.contains("\"worlds\":[\"")) {
+                return last;
+            }
+            sleep(250);
+        }
+        return last == null ? "null" : last;
     }
 
     /** After pressing the chat key, the screen opens across a tick or two — retry the type. */

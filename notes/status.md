@@ -1,6 +1,6 @@
 # Status — Minecraft Automated Driver
 
-**Updated:** 2026-07-24 · **Version:** 0.12.0 · **Phase:** goal-level autonomy — capability seam (0.10.0) + universal navigation goal (0.11.0) + semantic convenience verbs (0.12.0) shipped; next: agent ops for world_select/slider (0.13.0), then multi-target scenarios
+**Updated:** 2026-07-24 · **Version:** 0.13.0 · **Phase:** goal-level autonomy — capability seam (0.10.0) + universal navigation goal (0.11.0) + semantic convenience verbs (0.12.0) + world_list/world_select ops (0.13.0) shipped; next: slider agent op (mixin), then multi-target scenarios
 
 ## What this is
 
@@ -60,10 +60,14 @@ behind one tool surface. **Founding plan: `plans/roadmap-2026-07.md` — read it
   `ui_world_create`, `ui_world_enter`, `ui_world_leave`, `ui_settings_set`. Backend-agnostic
   (plans over advertised capabilities), unit-tested against fake widget trees + a protocol test
   over the in-memory MCP client. Owner mandate 2026-07-24; plan `plans/semantic-verbs-2026-07.md`.
-- **Next — agent ops for the remaining verbs (0.13.0)**: Fabric `world_select` (open a saved
-  world by name from the list) + a slider-set op, wiring `ui_world_enter` (existing worlds) and
-  numeric `ui_settings_set`; a real-client `flows-smoke` (XVFB) to confirm the English label
-  assumptions. Then multi-target scenarios (`scenario_run`), gather/combat, craft/build.
+- **World enter-by-name is live (0.13.0)**: Fabric agent ops `world_list` + `world_select`
+  (public 1.21.11 API — `WorldEntry.getLevelDisplayName()`/`play()`, verified via `javap`, locally
+  compiled), wiring `ui_world_enter` (retries `world_select` while the async list loads, then the
+  op enters directly). Numeric `ui_settings_set` now forward-dispatches to a `slider` capability.
+  Client gametest gains a third phase (Singleplayer → `world_list` → refuse-unknown `world_select`).
+- **Next — the slider agent op**: `SliderWidget.setValue` is protected → needs a Mixin `@Invoker`
+  (remap-safe) + accept the per-option range limits; the MCP `slider` dispatch already waits for it.
+  Then multi-target scenarios (`scenario_run`), gather/combat, craft/build.
   Plans `plans/semantic-verbs-2026-07.md` + `plans/goal-level-autonomy-2026-07.md`.
 - **Phase 3 / L3 Paper agent live** since 0.4.0: control-protocol spec + Kotlin Paper
   agent (state/exec/events), disabled-by-default, real e2e smoke.

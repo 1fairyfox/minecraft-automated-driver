@@ -179,9 +179,10 @@ export async function worldCreate(executor, { name, gameMode, labels = {} } = {}
 }
 
 /**
- * Enter an EXISTING world by name. Selecting a world-list entry (not a plain labelled button)
- * needs the agent's `world_select` capability — a clean forward boundary: create+enter works
- * today via worldCreate; opening a saved world by name lands with `world_select` (0.13.0).
+ * Enter an EXISTING world by name. A world-list entry is not a plain labelled button, so this
+ * needs the agent's `world_select` capability (which resolves the entry by name and enters it).
+ * The world list loads asynchronously, so we retry `world_select` until it matches, then wait
+ * for the world. Without the capability, a clear error points to worldCreate (create + enter).
  */
 export async function worldEnter(executor, { name, labels = {} } = {}, opts = {}) {
   requireCaps(executor, ['screen', 'click', 'position'], 'enter a world');
@@ -189,10 +190,12 @@ export async function worldEnter(executor, { name, labels = {} } = {}, opts = {}
   const L = { ...DEFAULT_LABELS, ...labels };
   await menuNavigate(executor, { path: [L.singleplayer] }, opts);
   if (!executor.has('world_select')) {
-    throw new Error("entering a saved world by name needs the agent 'world_select' capability (list entries aren't plain buttons) — arrives 0.13.0; use worldCreate to make + enter a fresh world now");
+    throw new Error("entering a saved world by name needs the agent 'world_select' capability (list entries aren't plain buttons) — use worldCreate to make + enter a fresh world");
   }
-  await executor.invoke('world_select', { name });
-  await clickWhenPresent(executor, L.playSelected, opts.wait ?? {});
+  await waitFor(
+    () => executor.invoke('world_select', { name }), (r) => r?.selected === true,
+    { tries: 20, delayMs: 250, ...(opts.wait ?? {}) },
+  );
   const position = await waitFor(
     () => executor.invoke('position'), (p) => p?.inWorld === true,
     { tries: 60, delayMs: 500, ...(opts.arriveWait ?? {}) },
@@ -220,21 +223,30 @@ export async function worldLeave(executor, { labels = {}, save = true } = {}, op
 }
 
 /**
- * Change a setting: open Options → traverse sub-screens by `path` → set a toggle/cycler control
- * (by label) to `value` → optionally click Done. Booleans map to ON/OFF; numbers are sliders and
- * are refused with a clear pointer to the agent slider op (0.13.0) — the honest boundary.
+ * Change a setting: open Options → traverse sub-screens by `path` → set a control by label →
+ * optionally click Done. Toggle/cycler controls (booleans → ON/OFF, strings cycle) are driven by
+ * clicking the label. A NUMERIC value is a slider: dispatched to the executor's `slider`
+ * capability when advertised, else refused with a clear pointer — the same forward-dispatch as
+ * worldEnter/world_select, so the verb is complete the moment the agent grows the op.
  */
 export async function settingsSet(executor, { path = [], control, value, labels = {}, back = false } = {}, opts = {}) {
   requireCaps(executor, ['screen', 'click'], 'change settings');
   if (!control) throw new Error('settingsSet needs a control label');
   if (value === undefined) throw new Error('settingsSet needs a value');
-  if (typeof value === 'number') {
-    throw new Error(`settingsSet drives toggle/cycler controls; '${control}'=${value} looks like a slider — needs the agent slider op (0.13.0)`);
+  const numeric = typeof value === 'number';
+  if (numeric && !executor.has('slider')) {
+    throw new Error(`settingsSet drives toggle/cycler controls by label; '${control}'=${value} is numeric — a slider needs the agent 'slider' capability (arrives with the Fabric slider op)`);
   }
   const L = { ...DEFAULT_LABELS, ...labels };
-  const desired = typeof value === 'boolean' ? (value ? 'ON' : 'OFF') : value;
   await menuNavigate(executor, { path: [L.options, ...path] }, opts);
-  const result = await cycleControlTo(executor, control, desired, opts.cycle ?? {});
+  let result;
+  if (numeric) {
+    const r = await executor.invoke('slider', { name: control, value });
+    result = { control: r?.control ?? control, value: r?.value ?? value };
+  } else {
+    const desired = typeof value === 'boolean' ? (value ? 'ON' : 'OFF') : value;
+    result = await cycleControlTo(executor, control, desired, opts.cycle ?? {});
+  }
   if (back) await clickWhenPresent(executor, L.done, opts.wait ?? {});
   return { set: control, to: value, ...result };
 }

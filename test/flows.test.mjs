@@ -40,7 +40,8 @@ function client({ caps = ['screen', 'click', 'type', 'position', 'close'], scree
       if (cap === 'type') return { typed: true, text: args.text };
       if (cap === 'close') { if (s.escTo != null) idx = s.escTo; return { closed: true }; }
       if (cap === 'position') return typeof position === 'function' ? position(idx) : (position ?? { inWorld: false });
-      if (cap === 'world_select') return { selected: true };
+      if (cap === 'world_select') { if (s.worldTo != null) idx = s.worldTo; return { selected: true, name: args.name }; }
+      if (cap === 'slider') return { control: args.name, value: args.value };
       if (cap === 'click') {
         const name = String(args.name).toLowerCase();
         const cyc = (s.cyclers ?? []).find((c) => c.label.toLowerCase().includes(name));
@@ -194,18 +195,19 @@ test('worldCreate rejects missing caps and a missing name', async () => {
 
 // ── worldEnter ───────────────────────────────────────────────────────────────
 
-test('worldEnter selects an existing world when world_select is advertised', async () => {
+test('worldEnter selects an existing world by name and enters it', async () => {
   const c = client({
     caps: ['screen', 'click', 'position', 'world_select'],
     screens: [
       { screen: 'Title', buttons: [{ label: 'Singleplayer', to: 1 }] },
-      { screen: 'Select', buttons: [{ label: 'Play Selected World', to: 2 }] },
+      { screen: 'Select', worldTo: 2 }, // world_select resolves the entry and enters (idx→2)
       { screen: 'InGame', buttons: [] },
     ],
     position: (idx) => ({ inWorld: idx >= 2 }),
   });
   const res = await worldEnter(c, { name: 'Saved' }, fast);
   assert.equal(res.entered, true);
+  assert.equal(res.position.inWorld, true);
   assert.ok(c.calls.some((k) => k.cap === 'world_select' && k.args.name === 'Saved'));
 });
 
@@ -302,12 +304,42 @@ test('serverConnect works without an address-field label override (sole field)',
   assert.equal(typed.args.name, undefined); // falsy override → no name forwarded
 });
 
-test('settingsSet validates inputs and refuses sliders', async () => {
+test('settingsSet validates inputs and refuses a slider when the capability is absent', async () => {
   const c = client({ caps: ['screen', 'click'], screens: [{ screen: 'T', buttons: [] }] });
   await assert.rejects(() => settingsSet({ id: 's', has: () => false }, { control: 'X', value: true }), /cannot change settings/);
   await assert.rejects(() => settingsSet(c, { value: true }), /needs a control/);
   await assert.rejects(() => settingsSet(c, { control: 'X' }), /needs a value/);
-  await assert.rejects(() => settingsSet(c, { control: 'FOV', value: 70 }), /slider/);
+  await assert.rejects(() => settingsSet(c, { control: 'FOV', value: 70 }), /slider needs the agent 'slider' capability/);
+});
+
+test('settingsSet dispatches a numeric value to the agent slider capability when advertised', async () => {
+  const c = client({
+    caps: ['screen', 'click', 'slider'],
+    screens: [
+      { screen: 'Title', buttons: [{ label: 'Options', to: 1 }] },
+      { screen: 'Options', buttons: [{ label: 'FOV' }] },
+    ],
+  });
+  const res = await settingsSet(c, { control: 'FOV', value: 70 }, fast);
+  assert.equal(res.to, 70);
+  assert.equal(res.value, 70);
+  assert.ok(c.calls.some((k) => k.cap === 'slider' && k.args.name === 'FOV' && k.args.value === 70));
+});
+
+test('settingsSet falls back to the requested control/value when the slider op is terse', async () => {
+  const ex = {
+    id: 'sl',
+    has: (cap) => ['screen', 'click', 'slider'].includes(cap),
+    invoke: async (cap) => {
+      if (cap === 'screen') return { tree: JSON.stringify({ screen: 'Options', widgets: [{ label: 'Options' }] }) };
+      if (cap === 'click') return { clicked: true };
+      if (cap === 'slider') return {}; // terse — echoes neither control nor value
+      return {};
+    },
+  };
+  const res = await settingsSet(ex, { control: 'FOV', value: 90 }, fast);
+  assert.equal(res.control, 'FOV'); // ?? control fallback
+  assert.equal(res.value, 90);      // ?? value fallback
 });
 
 test('settingsSet surfaces an unknown control and a value it cannot reach', async () => {

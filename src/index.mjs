@@ -845,9 +845,9 @@ export async function createServer({
     {
       title: 'Enter an existing world by name',
       description:
-        'Open a saved singleplayer world by name. Selecting a world-list entry needs the agent ' +
-        '`world_select` capability (arrives 0.13.0); until then use ui_world_create. Advertised ' +
-        'as a first-class verb so the forward path is explicit.',
+        'Open a saved singleplayer world by name → Singleplayer → resolve the world-list entry ' +
+        'by name and enter it (via the agent `world_select` capability), then wait until in-world. ' +
+        'Needs a target advertising screen+click+position+world_select (the Fabric client agent).',
       inputSchema: {
         targetId: z.string(),
         name: z.string().min(1),
@@ -891,9 +891,10 @@ export async function createServer({
     {
       title: 'Change a setting by name',
       description:
-        'One intent → Options → (traverse sub-screens by `path`) → set a toggle/cycler control ' +
-        'to `value` → optional Done. Booleans map to ON/OFF; a cycler is clicked until it shows ' +
-        'the value. Numeric/slider controls need the agent slider op (0.13.0). screen+click.',
+        'One intent → Options → (traverse sub-screens by `path`) → set a control to `value` → ' +
+        'optional Done. Booleans map to ON/OFF and cyclers are clicked until they show the value; ' +
+        'a NUMERIC value is a slider, dispatched to the target\'s `slider` capability when it has ' +
+        'one (else a clear error). Needs screen+click (+slider for numeric values).',
       inputSchema: {
         targetId: z.string(),
         control: z.string().min(1).describe('The control\'s stable label, e.g. "Difficulty"'),
