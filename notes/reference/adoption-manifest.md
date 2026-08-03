@@ -7,11 +7,11 @@ table has a recorded item-by-item pass — only that counts as `adopted`.
 Seeded 2026-07-22 from the sibling despawned-items node's standard set (which is ahead
 of the hub — divergences get flagged on the first fairyfox check-for-updates run).
 
-**2026-08-02 — first fairyfox check against hub 1.6.2** (`b87b4d4`): adopted 8 missing
-standards + refreshed 7 behind-hub standards; deferred 10 divergent standards for
-deliberate hand-merge. Full account: `../fairyfox-reports/2026-08-02-adopting-updates.md`.
-Newly `copied-only` standards below inherit that state until their Verify tables get a
-recorded item-by-item pass.
+**2026-08-02 — first fairyfox check against hub 1.6.2** (`b87b4d4`): adopted **every
+applicable hub standard** — 8 missing + 7 behind + 10 divergent (all hub-verbatim) + the
+README standard as `readme-standard.md`. Full account:
+`../fairyfox-reports/2026-08-02-adopting-updates.md`. Newly `copied-only` standards below
+inherit that state until their Verify tables get a recorded item-by-item pass.
 
 | Standard | State | Notes |
 |----------|-------|-------|
@@ -36,4 +36,5 @@ recorded item-by-item pass.
 | docker | **copied-only** | Adopted 2026-08-02. Reference only; no Docker build wired yet |
 | farm-operating-model | **N/A** | Adopted doc 2026-08-02 for matrix completeness; this node is a dev tool, **not a farm** |
 | new-project-setup / onboarding-existing-project | **copied-only** | Adopted 2026-08-02 (lifecycle runbooks; node already onboarded) |
-| **Divergent — deferred (2026-08-02)** | **behind-hub, reconcile pending** | adopting-updates, badges, compliance, cross-project-sync, deployment, planning, process-reports, repo-hygiene, self-hosted-assets, supply-chain-hardening carry sibling-ahead/path-adapted lines — need per-file hand-merge, not overwrite. `readme` standard deferred (Windows `readme.md`/`README.md` collision) |
+| adopting-updates / badges / compliance / cross-project-sync / deployment / planning / process-reports / repo-hygiene / self-hosted-assets / supply-chain-hardening | **copied-only** (reconciled 2026-08-02) | Adopted hub-verbatim to 1.6.2; `notes/reference/` is verbatim-hub by design. 2 sibling-ahead snippets kept in the 2026-08-02 report as upstream candidates |
+| readme (as `readme-standard.md`) | **copied-only** | Adopted 2026-08-02; renamed from `readme.md` to avoid the Windows `README.md` folder-index collision. Applying the README cross-links to the repo's own `README.md` is follow-up |

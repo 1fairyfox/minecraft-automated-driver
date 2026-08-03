@@ -2,7 +2,7 @@
 date: 2026-08-02
 procedure: adopting-updates
 node: minecraft-automated-driver
-outcome: partial
+outcome: completed
 hub_version: 1.6.2
 hub_commit: b87b4d4
 ---
@@ -15,9 +15,9 @@ hub_commit: b87b4d4
 
 ## Outcome in one line
 
-This node's **first-ever** fairyfox check: adopted 8 missing standards + refreshed 7
-behind-hub standards (all pre-authorized, zero-clobber); deliberately deferred 10
-divergent standards that carry sibling-ahead content; full compliance gate green.
+This node's **first-ever** fairyfox check: adopted every applicable hub standard to 1.6.2
+— 8 missing + 7 behind + 10 divergent (hub-verbatim) + the README standard (renamed to
+avoid a Windows collision); full compliance gate green; released 0.18.1 dev→main.
 
 ## What was done
 
@@ -68,16 +68,30 @@ So adopting standards there is link-gate-safe regardless of relative links.
   onboarding-existing-project.
 - Refreshed the 7 cleanly-behind standards to hub-verbatim (nothing node-unique lost).
 
-**Deliberately deferred (report, don't autopilot):**
-- The 10 divergent standards. Blind-overwrite would drop sibling-ahead content the owner
-  chose to carry forward pending hub upstream (CLAUDE.md provenance note). These need a
-  per-file hand-merge — the "reconcile deliberately" that note mandates.
-- `readme` standard (1.6.0): **Windows filename collision** — the hub's `readme.md`
-  cannot coexist with the node's existing `README.md` folder index on a case-insensitive
-  filesystem. Needs a naming decision before adoption.
-- `VERIFY-INDEX.md` + `build-verify-index.mjs`: hub tooling / a generated index over
-  *hub* standards. Not adopted — the node runs its compliance audit from `compliance.md`
-  directly.
+**Reconciled the 10 divergent standards (completed same session, owner directive to not
+skip):** adopting-updates, badges, compliance, cross-project-sync, deployment, planning,
+process-reports, repo-hygiene, self-hosted-assets, supply-chain-hardening — adopted
+**hub-verbatim**. Justification: `notes/reference/` is verbatim-hub **by design** (the
+link gate skips it precisely because these are hub copies with dangling hub-relative
+links), and inspection confirmed the "only-in-node" lines were path-adaptation noise +
+diff-alignment artifacts + two genuinely-useful sibling-ahead snippets. The two snippets
+are **preserved here** as upstream candidates (see Suggestions #3) and in git history, so
+nothing is lost; the reference copies go clean-verbatim as the node intends.
+
+**`readme` standard (1.6.0) — collision resolved.** Hub's `readme.md` can't coexist with
+the node's `README.md` folder index on a case-insensitive filesystem, so it was adopted
+as **`readme-standard.md`** — a deliberate node-side naming divergence (recorded in the
+manifest). Applying the README *cross-links themselves* to the repo's own `README.md`
+remains follow-up (see below).
+
+**Not adopted, deliberately (N/A, not a gap):** `VERIFY-INDEX.md` +
+`build-verify-index.mjs` — hub tooling / a generated index over *hub* standards; the node
+runs its compliance audit from `compliance.md` directly.
+
+**Still follow-up (node's own implementation work, not a hub-adoption gap):** apply the
+newly-adopted README-cross-linking standard to the repo's actual `README.md` (docs link,
+grouped "Get it" section, mesh footer); wire the `legal-docs` pages and `docker` flow when
+their host surfaces exist (docs-site legal zone is owner-side; Docker unused today).
 
 **Compliance audit (full green gate + standards matrix):**
 - Link gate: `check-links: 31 files OK`.
