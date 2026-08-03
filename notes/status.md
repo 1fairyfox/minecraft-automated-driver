@@ -1,6 +1,6 @@
 # Status — Minecraft Automated Driver
 
-**Updated:** 2026-07-25 · **Version:** 0.18.0 · **Phase:** goal-level autonomy **COMPLETE** — capability seam (0.10.0) → navigation (0.11.0) → scenarios (0.15.0) → gather/hunt (0.17.0) → **craft/place/build (0.18.0)**; security hardening for inbound/untrusted content (0.16.0) shipped; next: roadmap Phase 6 (the reflection gateway)
+**Updated:** 2026-08-02 · **Version:** 0.18.1 · **Phase:** goal-level autonomy **COMPLETE** — capability seam (0.10.0) → navigation (0.11.0) → scenarios (0.15.0) → gather/hunt (0.17.0) → **craft/place/build (0.18.0)**; security hardening for inbound/untrusted content (0.16.0) shipped; next: roadmap Phase 6 (the reflection gateway)
 
 ## What this is
 
@@ -109,8 +109,8 @@ behind one tool surface. **Founding plan: `plans/roadmap-2026-07.md` — read it
   console, auto-provisioned Java.
 - **Phase 1 / L0 live** since 0.2.0: window list/screenshot (PrintWindow + screen
   fallback), instance open/close, windows-latest CI smoke.
-- **Quality gates:** 80 tests across all layers, c8 gate ≥90% on all four metrics
-  (99%+ lines), CI + CodeQL + Scorecard + Codecov + Sonar (SHA-pinned,
+- **Quality gates:** 193 tests across all layers, c8 gate ≥90% on all four metrics
+  (99.02% lines, 91.56% branch — 2026-08-02), CI + CodeQL + Scorecard + Codecov + Sonar (SHA-pinned,
   least-privilege), `main` branch-protected, private vulnerability reporting on.
 - Key decisions recorded in `decisions/architecture.md` (JS-not-TS host, MC 1.21.11
   target, instance+attach dual mode, loopback+token security, GitHub-only distribution).
