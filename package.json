@@ -17,12 +17,12 @@
     "build-docs": "node scripts/build-docs.mjs"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "1.29.0",
+    "@modelcontextprotocol/sdk": "1.30.0",
     "mineflayer": "4.37.1",
     "mineflayer-collectblock": "1.6.0",
     "mineflayer-pathfinder": "2.4.5",
     "mineflayer-pvp": "1.3.2",
-    "vec3": "0.1.10",
+    "vec3": "0.2.0",
     "zod": "3.25.76"
   },
   "devDependencies": {
