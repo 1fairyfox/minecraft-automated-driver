@@ -4,8 +4,8 @@ plugins {
     // Kotlin held at 2.4.0 deliberately: CodeQL's extractor supports up to 2.4.0 and
     // hard-rejects newer ("too recent"). Same pin as the sibling node; bump together
     // with CodeQL only.
-    kotlin("jvm") version "2.4.0"
-    id("com.gradleup.shadow") version "9.6.0"
+    kotlin("jvm") version "2.4.10"
+    id("com.gradleup.shadow") version "9.6.1"
     id("org.jetbrains.kotlinx.kover") version "0.9.9"
 }
 
@@ -21,13 +21,13 @@ dependencies {
     compileOnly("io.papermc.paper:paper-api:1.21.11-R0.1-SNAPSHOT")
     // Gson ships inside every Paper server (and rides paper-api's compile classpath
     // transitively) — declared explicitly so the compile never depends on transitivity.
-    compileOnly("com.google.code.gson:gson:2.11.0")
+    compileOnly("com.google.code.gson:gson:2.14.0")
     // Shaded into the jar (shadowJar below) so the agent is self-contained.
     implementation(kotlin("stdlib"))
 
     testImplementation("org.mockbukkit.mockbukkit:mockbukkit-v1.21:4.110.0")
     testImplementation("io.papermc.paper:paper-api:1.21.11-R0.1-SNAPSHOT")
-    testImplementation("com.google.code.gson:gson:2.11.0")
+    testImplementation("com.google.code.gson:gson:2.14.0")
     testImplementation(kotlin("test"))
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
