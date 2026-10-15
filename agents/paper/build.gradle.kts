@@ -18,7 +18,7 @@ repositories {
 }
 
 dependencies {
-    compileOnly("io.papermc.paper:paper-api:1.21.11-R0.1-SNAPSHOT")
+    compileOnly("io.papermc.paper:paper-api:26.1.2.build.74-stable")
     // Gson ships inside every Paper server (and rides paper-api's compile classpath
     // transitively) — declared explicitly so the compile never depends on transitivity.
     compileOnly("com.google.code.gson:gson:2.11.0")
@@ -26,7 +26,7 @@ dependencies {
     implementation(kotlin("stdlib"))
 
     testImplementation("org.mockbukkit.mockbukkit:mockbukkit-v1.21:4.110.0")
-    testImplementation("io.papermc.paper:paper-api:1.21.11-R0.1-SNAPSHOT")
+    testImplementation("io.papermc.paper:paper-api:26.1.2.build.74-stable")
     testImplementation("com.google.code.gson:gson:2.11.0")
     testImplementation(kotlin("test"))
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
